@@ -23,7 +23,7 @@ export interface NetworkConfig {
   sorobanUrl?: string
   passphrase: string
   faucetUrl?: string
-  headers?: Record<string, string>
+  customHeaders?: Record<string, string>
 }
 
 export const NETWORKS: Record<NetworkName, NetworkConfig> = {
@@ -134,22 +134,27 @@ function getServerOptions(network: NetworkName) {
 
 // ─── Rate Limited Fetch Wrapper ───────────────────────────────────────────────
 
-async function rateLimitedFetch(url: string, options?: RequestInit, priority: 'high' | 'medium' | 'low' = 'medium'): Promise<Response> {
+async function rateLimitedFetch(url: string, options?: RequestInit, priority: 'high' | 'medium' | 'low' = 'medium', extraHeaders?: Record<string, string>): Promise<Response> {
   const startTime = Date.now()
   
+  // Merge custom network headers (e.g. API keys) without mutating caller options
+  const mergedOptions: RequestInit = extraHeaders && Object.keys(extraHeaders).length > 0
+    ? { ...options, headers: { ...(options?.headers as Record<string, string> | undefined), ...extraHeaders } }
+    : options ?? {}
+  
   try {
-    // Log the API call
-    auditTrail.logAPICall(url, options?.method || 'GET', options, {})
+    // Log the API call (options without secret headers — sanitized by auditTrail)
+    auditTrail.logAPICall(url, mergedOptions.method || 'GET', mergedOptions, {})
     
     // Check rate limits first
     const check = rateLimiter.checkRequest('stellar_client', rateLimiter.extractEndpoint(url))
     
     if (!check.allowed) {
       // Queue the request if rate limited
-      const response = await rateLimiter.queueRequest({ url, options, priority }, 'stellar_client')
+      const response = await rateLimiter.queueRequest({ url, options: mergedOptions, priority }, 'stellar_client')
       const responseTime = Date.now() - startTime
       
-      auditTrail.logAPICall(url, options?.method || 'GET', options, { 
+      auditTrail.logAPICall(url, mergedOptions.method || 'GET', mergedOptions, { 
         status: response.status,
         responseTime,
         queued: true
@@ -159,10 +164,10 @@ async function rateLimitedFetch(url: string, options?: RequestInit, priority: 'h
     }
     
     // Execute request immediately if allowed
-    const response = await fetch(url, options)
+    const response = await fetch(url, mergedOptions)
     const responseTime = Date.now() - startTime
     
-    auditTrail.logAPICall(url, options?.method || 'GET', options, { 
+    auditTrail.logAPICall(url, mergedOptions.method || 'GET', mergedOptions, { 
       status: response.status,
       responseTime,
       queued: false
@@ -171,7 +176,7 @@ async function rateLimitedFetch(url: string, options?: RequestInit, priority: 'h
     return response
     
   } catch (error) {
-    auditTrail.logError(error as Error, { url, options, operation: 'rateLimitedFetch' })
+    auditTrail.logError(error as Error, { url, operation: 'rateLimitedFetch' })
     throw error
   }
 }
@@ -215,6 +220,11 @@ export async function switchToCustomProfile(profileId: string): Promise<void> {
 export async function loadCustomNetworkProfiles() {
   const { loadNetworkProfiles } = await import('./userPreferences')
   return loadNetworkProfiles()
+}
+
+/** Returns the custom headers configured for a network (only 'custom' supports them). */
+export function getNetworkHeaders(network: NetworkName): Record<string, string> | undefined {
+  return NETWORKS[network].customHeaders
 }
 
 export function getServer(network: NetworkName = 'testnet'): StellarSdk.Horizon.Server {
@@ -856,6 +866,59 @@ export function isValidContractId(id: string): boolean {
   } catch {
     return false
   }
+}
+
+// ─── Claimable Balances ───────────────────────────────────────────────────────
+
+export interface ClaimableBalanceRecord {
+  id: string
+  asset: string
+  amount: string
+  sponsor: string
+  last_modified_ledger: number
+  claimants: Array<{
+    destination: string
+    predicate: Record<string, unknown>
+  }>
+}
+
+/** Human-readable summary of a claimant predicate. */
+export function formatClaimPredicate(predicate: Record<string, unknown>): string {
+  if (!predicate || Object.keys(predicate).length === 0) return 'Unconditional'
+  if ('unconditional' in predicate) return 'Unconditional'
+  if ('abs_before' in predicate) return `Before ${predicate.abs_before}`
+  if ('abs_after' in predicate) return `After ${predicate.abs_after}`
+  if ('rel_before' in predicate) return `Within ${predicate.rel_before}s of claim`
+  if ('and' in predicate) {
+    const parts = (predicate.and as Record<string, unknown>[]).map(formatClaimPredicate)
+    return parts.join(' AND ')
+  }
+  if ('or' in predicate) {
+    const parts = (predicate.or as Record<string, unknown>[]).map(formatClaimPredicate)
+    return parts.join(' OR ')
+  }
+  if ('not' in predicate) return `NOT (${formatClaimPredicate(predicate.not as Record<string, unknown>)})`
+  return JSON.stringify(predicate)
+}
+
+export async function fetchClaimableBalances(
+  publicKey: string,
+  network: NetworkName = 'testnet'
+): Promise<ClaimableBalanceRecord[]> {
+  const cacheKey = `claimable:${publicKey}:${network}`
+  const cached = stellarCache.get(cacheKey)
+  if (cached) return cached
+
+  const config = NETWORKS[network]
+  const url = `${config.horizonUrl}/claimable_balances?claimant=${encodeURIComponent(publicKey)}&limit=50`
+  const response = await rateLimitedFetch(url, undefined, 'medium', config.customHeaders)
+
+  if (!response.ok) throw new Error(`Horizon error ${response.status}`)
+
+  const data = await response.json()
+  const records: ClaimableBalanceRecord[] = data._embedded?.records ?? []
+  stellarCache.set(cacheKey, records, TTL.ACCOUNT, ['claimable', publicKey])
+  return records
 }
 
 // ─── Formatters ───────────────────────────────────────────────────────────────

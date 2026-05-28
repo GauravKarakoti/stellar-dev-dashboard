@@ -2,17 +2,9 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useSettings } from "../../hooks/useSettings";
 import { useStore } from "../../lib/store";
 import { getEnvironmentConfig } from "../../lib/config";
-import { 
-  loadNetworkProfiles, 
-  saveNetworkProfile, 
-  deleteNetworkProfile,
-  setActiveProfile 
-} from "../../lib/userPreferences";
-import { 
-  validateHorizonUrl, 
-  validateSorobanUrl, 
-  validateNetworkPassphrase 
-} from "../../lib/validation";
+import { updateCustomNetworkConfig } from "../../lib/stellar";
+
+const SESSION_API_KEY = 'stellar_custom_api_key';
 
 function FieldLabel({ children }) {
   return (
@@ -63,17 +55,22 @@ export default function Settings() {
   const [passphrase, setPassphrase] = useState("");
   const [validationErrors, setValidationErrors] = useState({});
   const [draftConfig, setDraftConfig] = useState(() => activeProfile.config);
-  const [configProfileName, setConfigProfileName] = useState("");
-
+  const [apiKey, setApiKey] = useState(() => sessionStorage.getItem(SESSION_API_KEY) || "");
   const baseline = useMemo(() => getEnvironmentConfig(), []);
 
-  // Load custom profiles on mount
-  useEffect(() => {
-    loadNetworkProfiles().then(setCustomProfiles);
-  }, []);
+  function handleApiKeyChange(val) {
+    setApiKey(val);
+    if (val) {
+      sessionStorage.setItem(SESSION_API_KEY, val);
+      updateCustomNetworkConfig({ customHeaders: { Authorization: `Bearer ${val}` } });
+    } else {
+      sessionStorage.removeItem(SESSION_API_KEY);
+      updateCustomNetworkConfig({ customHeaders: {} });
+    }
+  }
 
-  function handleSaveConfigProfile() {
-    const name = configProfileName.trim() || activeProfileName;
+  function handleSaveProfile() {
+    const name = profileName.trim() || activeProfileName;
     saveProfile(name, draftConfig);
     setConfigProfileName("");
   }
@@ -353,222 +350,49 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Custom Network Profiles Section (Issue #188) */}
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "14px", display: "flex", flexDirection: "column", gap: "12px" }}>
-        <FieldLabel>Custom Network Profiles</FieldLabel>
-        <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-          Save and manage multiple Horizon/RPC endpoint presets
+      {/* Custom Horizon API Key */}
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "14px", display: "flex", flexDirection: "column", gap: "10px" }}>
+        <FieldLabel>Custom Horizon API Key</FieldLabel>
+        <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+          Sent as <code>Authorization: Bearer …</code> on custom network requests. Stored in sessionStorage only — cleared on tab close.
         </div>
-
-        {customProfiles.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase" }}>
-              Saved Profiles
-            </div>
-            {customProfiles.map((profile) => (
-              <div
-                key={profile.id}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "8px",
-                  background: "var(--bg-elevated)",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--border)",
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)" }}>
-                    {profile.name}
-                  </div>
-                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
-                    {profile.horizonUrl}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: "6px" }}>
-                  <button
-                    onClick={() => handleSelectProfile(profile)}
-                    style={{
-                      padding: "4px 8px",
-                      fontSize: "11px",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid var(--border)",
-                      background: "var(--bg-hover)",
-                      color: "var(--text-secondary)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteNetworkProfile(profile.id)}
-                    style={{
-                      padding: "4px 8px",
-                      fontSize: "11px",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid var(--error)",
-                      background: "rgba(255, 0, 0, 0.1)",
-                      color: "var(--error)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Delete
-                  </button>
-                  <button
-                    onClick={() => handleSwitchProfile(profile.id)}
-                    style={{
-                      padding: "4px 8px",
-                      fontSize: "11px",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid var(--cyan-dim)",
-                      background: "var(--cyan-glow)",
-                      color: "var(--cyan)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Switch
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Profile Form */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px", paddingTop: "12px", borderTop: "1px solid var(--border)" }}>
-          <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase" }}>
-            {selectedProfileId ? "Edit Profile" : "Add New Profile"}
-          </div>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px", color: "var(--text-secondary)" }}>
-            <span>Profile Name *</span>
-            <input
-              type="text"
-              value={profileName}
-              onChange={(e) => {
-                setProfileName(e.target.value);
-                setValidationErrors({ ...validationErrors, profileName: "" });
-              }}
-              placeholder="e.g., Private Testnet, Local Dev"
-              style={{
-                padding: "8px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border)",
-                background: "var(--bg-elevated)",
-                color: "var(--text-primary)",
-                fontSize: "12px",
-              }}
-            />
-            <ErrorMessage message={validationErrors.profileName} />
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px", color: "var(--text-secondary)" }}>
-            <span>Horizon URL *</span>
-            <input
-              type="text"
-              value={horizonUrl}
-              onChange={(e) => {
-                setHorizonUrl(e.target.value);
-                setValidationErrors({ ...validationErrors, horizonUrl: "" });
-              }}
-              placeholder="https://horizon.stellar.org"
-              style={{
-                padding: "8px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border)",
-                background: "var(--bg-elevated)",
-                color: "var(--text-primary)",
-                fontSize: "12px",
-                fontFamily: "var(--font-mono)",
-              }}
-            />
-            <ErrorMessage message={validationErrors.horizonUrl} />
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px", color: "var(--text-secondary)" }}>
-            <span>Soroban RPC URL (optional)</span>
-            <input
-              type="text"
-              value={sorobanUrl}
-              onChange={(e) => {
-                setSorobanUrl(e.target.value);
-                setValidationErrors({ ...validationErrors, sorobanUrl: "" });
-              }}
-              placeholder="https://soroban-rpc.stellar.org"
-              style={{
-                padding: "8px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border)",
-                background: "var(--bg-elevated)",
-                color: "var(--text-primary)",
-                fontSize: "12px",
-                fontFamily: "var(--font-mono)",
-              }}
-            />
-            <ErrorMessage message={validationErrors.sorobanUrl} />
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px", color: "var(--text-secondary)" }}>
-            <span>Network Passphrase *</span>
-            <input
-              type="text"
-              value={passphrase}
-              onChange={(e) => {
-                setPassphrase(e.target.value);
-                setValidationErrors({ ...validationErrors, passphrase: "" });
-              }}
-              placeholder="Public Global Stellar Network ; September 2015"
-              style={{
-                padding: "8px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border)",
-                background: "var(--bg-elevated)",
-                color: "var(--text-primary)",
-                fontSize: "12px",
-                fontFamily: "var(--font-mono)",
-              }}
-            />
-            <ErrorMessage message={validationErrors.passphrase} />
-          </label>
-
-          <ErrorMessage message={validationErrors.submit || validationErrors.delete || validationErrors.switch} />
-
-          <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => handleApiKeyChange(e.target.value)}
+            placeholder="Paste API key…"
+            autoComplete="off"
+            style={{
+              flex: 1,
+              padding: "8px",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid var(--border)",
+              background: "var(--bg-elevated)",
+              color: "var(--text-primary)",
+              fontFamily: "var(--font-mono)",
+              fontSize: "12px",
+            }}
+          />
+          {apiKey && (
             <button
-              onClick={handleSaveNetworkProfile}
+              onClick={() => handleApiKeyChange("")}
               style={{
-                flex: 1,
-                padding: "8px 12px",
+                padding: "8px 10px",
                 borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--cyan-dim)",
-                background: "var(--cyan-glow)",
-                color: "var(--cyan)",
+                border: "1px solid var(--border)",
+                background: "var(--bg-elevated)",
+                color: "var(--text-secondary)",
                 fontSize: "12px",
-                fontWeight: 500,
-                cursor: "pointer",
               }}
             >
-              {selectedProfileId ? "Update Profile" : "Save Profile"}
+              Clear
             </button>
-            {selectedProfileId && (
-              <button
-                onClick={handleClearForm}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--border)",
-                  background: "var(--bg-elevated)",
-                  color: "var(--text-secondary)",
-                  fontSize: "12px",
-                  cursor: "pointer",
-                }}
-              >
-                Clear
-              </button>
-            )}
-          </div>
+          )}
         </div>
+        {apiKey && (
+          <div style={{ fontSize: "11px", color: "var(--green)" }}>✓ API key active</div>
+        )}
       </div>
     </div>
   );

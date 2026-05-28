@@ -4,10 +4,13 @@ import CopyableValue from '../dashboard/CopyableValue'
 import { NETWORKS, updateCustomNetworkConfig, switchToCustomProfile, loadCustomNetworkProfiles } from '../../lib/stellar'
 import { getActiveProfile } from '../../lib/userPreferences'
 
+const SESSION_API_KEY = 'stellar_custom_api_key'
+
 const NAV_ITEMS = [
   { type: 'header', label: 'ANALYTICS' },
   { id: 'overview', label: 'Overview', icon: '◈' },
   { id: 'account', label: 'Account', icon: '◉' },
+  { id: 'claimableBalances', label: 'Claimable', icon: '⊛' },
   { id: 'compare', label: 'Compare', icon: '◫' },
   { id: 'transactions', label: 'Transactions', icon: '⇄' },
   { id: 'contracts', label: 'Contracts', icon: '◻' },
@@ -102,6 +105,14 @@ export default function Sidebar({ isMobile = false }) {
       console.error('Failed to switch profile:', err)
     }
   }
+
+  // Restore custom API key from sessionStorage on mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem(SESSION_API_KEY)
+    if (saved) {
+      updateCustomNetworkConfig({ customHeaders: { Authorization: `Bearer ${saved}` } })
+    }
+  }, [])
 
   const sidebarStyles = {
     width: isMobile ? 'var(--sidebar-width-mobile)' : 'var(--sidebar-width)',
@@ -273,17 +284,20 @@ export default function Sidebar({ isMobile = false }) {
                 onChange={(e) => updateCustomNetworkConfig({ passphrase: e.target.value.trim() })}
               />
               <input
-                placeholder="Auth Header Name"
-                value={customHeaderName}
-                style={customInputStyle}
-                onChange={(e) => updateCustomHeader(e.target.value, customHeaderValue)}
-              />
-              <input
-                placeholder="Auth Header Value (session only)"
                 type="password"
-                value={customHeaderValue}
+                placeholder="API Key (optional)"
+                defaultValue={sessionStorage.getItem(SESSION_API_KEY) || ''}
                 style={customInputStyle}
-                onChange={(e) => updateCustomHeader(customHeaderName, e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value.trim()
+                  if (val) {
+                    sessionStorage.setItem(SESSION_API_KEY, val)
+                    updateCustomNetworkConfig({ customHeaders: { Authorization: `Bearer ${val}` } })
+                  } else {
+                    sessionStorage.removeItem(SESSION_API_KEY)
+                    updateCustomNetworkConfig({ customHeaders: {} })
+                  }
+                }}
               />
             </div>
           )}
