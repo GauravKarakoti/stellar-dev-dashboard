@@ -16,18 +16,35 @@ function fail(...errors: string[]): ValidationResult { return { valid: false, er
 // ─── Stellar address ──────────────────────────────────────────────────────────
 
 const STELLAR_ADDRESS_RE = /^G[A-Z2-7]{55}$/
+const STELLAR_MUXED_RE = /^M[A-Z2-7]{55}$/
+const FEDERATED_ADDRESS_RE = /^[a-zA-Z0-9._-]+\*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 
 /**
- * Validate a Stellar public key (G… address).
+ * Validate a Stellar public key (G…), muxed account (M…), or federated address (name*domain).
  */
 export function validateStellarAddress(value: unknown): ValidationResult {
   if (typeof value !== 'string' || value.trim() === '') {
     return fail('Stellar address is required.')
   }
   const trimmed = value.trim()
-  if (!STELLAR_ADDRESS_RE.test(trimmed)) {
-    return fail('Invalid Stellar address. Must start with G and be 56 characters long.')
+  
+  // Check G... Ed25519
+  if (STELLAR_ADDRESS_RE.test(trimmed)) {
+    return ok()
   }
+  
+  // Check M... muxed account
+  if (STELLAR_MUXED_RE.test(trimmed)) {
+    return ok()
+  }
+  
+  // Check name*domain federated address
+  if (FEDERATED_ADDRESS_RE.test(trimmed)) {
+    return ok()
+  }
+  
+  return fail('Invalid Stellar address. Must be a G... address, M... muxed account, or name*domain federated address.')
+}
   return ok()
 }
 

@@ -733,8 +733,201 @@ export async function invokeContract(
 
 // ─── Validators ───────────────────────────────────────────────────────────────
 
-export function isValidPublicKey(key: string): boolean {
+/**
+ * Check if address is a valid Ed25519 public key (G...)
+ */
+export function isValidEd25519PublicKey(key: string): boolean {
   return StellarSdk.StrKey.isValidEd25519PublicKey(key)
+}
+
+/**
+ * Check if address is a valid muxed account (M...)
+ */
+export function isValidMuxedAccount(key: string): boolean {
+  try {
+    return StellarSdk.StrKey.isValidMuxedAccount(key)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Check if address is a federated address (name*domain)
+ */
+export function isFederatedAddress(input: string): boolean {
+  return typeof input === 'string' && /^[a-zA-Z0-9._-]+\*[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(input)
+}
+
+/**
+ * Extract master account and muxed ID from a muxed address
+ */
+export function parseMuxedAccount(muxedAddress: string): { masterAccount: string; muxedId: string } | null {
+  try {
+    const muxed = StellarSdk.MuxedAccount.fromString(muxedAddress)
+    return {
+      masterAccount: muxed.baseAccount().accountId(),
+      muxedId: muxed.id
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Resolve a federated address to a Stellar account via Horizon federation endpoint
+ */
+export async function resolveFederatedAddress(
+  federatedAddress: string,
+  network: NetworkName = 'testnet'
+): Promise<{ accountId: string; memoId?: string; memoType?: string } | null> {
+  try {
+    const server = getServer(network)
+    
+    // Parse the federated address (name*domain)
+    const [name, domain] = federatedAddress.split('*')
+    
+    if (!name || !domain) {
+      return null
+    }
+
+    // Fetch the federation record from the domain's .well-known/stellar.toml
+    const federationUrl = `https://${domain}/.well-known/stellar.toml`
+    
+    let tomlData: Record<string, any> = {}
+    try {
+      const tomlResponse = await rateLimitedFetch(federationUrl)
+      if (!tomlResponse.ok) {
+        // Try using Horizon federation endpoint as fallback
+        try {
+          const result = await server.federation().resolveAddress(federatedAddress)
+          return result as any
+        } catch {
+          return null
+        }
+      }
+      
+      // Parse TOML (basic parsing for FEDERATION_SERVER URL)
+      const tomlText = await tomlResponse.text()
+      const federationServerMatch = tomlText.match(/FEDERATION_SERVER\s*=\s*"([^"]+)"/)
+      if (federationServerMatch) {
+        tomlData.federationServer = federationServerMatch[1]
+      }
+    } catch {
+      // Fallback to Horizon federation endpoint
+      try {
+        const result = await server.federation().resolveAddress(federatedAddress)
+        return result as any
+      } catch {
+        return null
+      }
+    }
+
+    // Use the federation server URL if found
+    if (tomlData.federationServer) {
+      const federationEndpoint = new URL(tomlData.federationServer)
+      federationEndpoint.searchParams.append('q', federatedAddress)
+      federationEndpoint.searchParams.append('type', 'name')
+
+      const response = await rateLimitedFetch(federationEndpoint.toString())
+      if (response.ok) {
+        return await response.json()
+      }
+    }
+
+    // Fallback to Horizon federation endpoint
+    try {
+      const result = await server.federation().resolveAddress(federatedAddress)
+      return result as any
+    } catch {
+      return null
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Comprehensive address resolver
+ * Accepts: G... (Ed25519), M... (muxed), or name*domain (federated)
+ * Returns: master account ID, muxed ID (if applicable), and original input info
+ */
+export interface ResolvedAddress {
+  accountId: string           // The master account ID (always G...)
+  muxedId?: string           // Muxed ID if input was M...
+  originalInput: string      // Original input provided
+  inputType: 'ed25519' | 'muxed' | 'federated'
+  federatedAddress?: string  // Original federated address if applicable
+  memoId?: string            // Memo ID from federation resolution
+  memoType?: string          // Memo type from federation resolution
+}
+
+export async function resolveAddress(
+  input: string,
+  network: NetworkName = 'testnet'
+): Promise<ResolvedAddress | null> {
+  if (!input || typeof input !== 'string') {
+    return null
+  }
+
+  const trimmedInput = input.trim()
+
+  // Try Ed25519 public key (G...)
+  if (isValidEd25519PublicKey(trimmedInput)) {
+    return {
+      accountId: trimmedInput,
+      originalInput: trimmedInput,
+      inputType: 'ed25519',
+    }
+  }
+
+  // Try muxed account (M...)
+  if (isValidMuxedAccount(trimmedInput)) {
+    const parsed = parseMuxedAccount(trimmedInput)
+    if (parsed) {
+      return {
+        accountId: parsed.masterAccount,
+        muxedId: parsed.muxedId,
+        originalInput: trimmedInput,
+        inputType: 'muxed',
+      }
+    }
+  }
+
+  // Try federated address (name*domain)
+  if (isFederatedAddress(trimmedInput)) {
+    const resolved = await resolveFederatedAddress(trimmedInput, network)
+    if (resolved?.accountId) {
+      return {
+        accountId: resolved.accountId,
+        originalInput: trimmedInput,
+        inputType: 'federated',
+        federatedAddress: trimmedInput,
+        memoId: resolved.memoId,
+        memoType: resolved.memoType,
+      }
+    }
+  }
+
+  return null
+}
+
+/**
+ * Validate any supported address format (legacy function name for backward compatibility)
+ */
+export function isValidPublicKey(key: string): boolean {
+  if (!key || typeof key !== 'string') return false
+  const trimmed = key.trim()
+  
+  // Check G... Ed25519
+  if (isValidEd25519PublicKey(trimmed)) return true
+  
+  // Check M... muxed
+  if (isValidMuxedAccount(trimmed)) return true
+  
+  // Check name*domain federated
+  if (isFederatedAddress(trimmed)) return true
+  
+  return false
 }
 
 export function isValidContractId(id: string): boolean {
@@ -1763,6 +1956,12 @@ export default {
   simulateContractCall,
   invokeContract,
   isValidPublicKey,
+  isValidEd25519PublicKey,
+  isValidMuxedAccount,
+  isFederatedAddress,
+  parseMuxedAccount,
+  resolveFederatedAddress,
+  resolveAddress,
   isValidContractId,
   formatXLM,
   shortAddress,
