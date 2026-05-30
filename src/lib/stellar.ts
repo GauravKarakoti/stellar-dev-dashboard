@@ -246,6 +246,122 @@ export function getSorobanServer(network: NetworkName = 'testnet'): StellarSdk.S
   )
 }
 
+export type ProbeStatus = 'up' | 'degraded' | 'down'
+
+export interface ServiceProbeResult {
+  url: string
+  status: ProbeStatus
+  latency: number | null
+  statusCode?: number
+  breakerState: CircuitState
+  error?: string
+}
+
+export interface NetworkProbeResult {
+  network: NetworkName
+  name: string
+  horizon: ServiceProbeResult
+  soroban: ServiceProbeResult
+}
+
+const PROBE_TIMEOUT_MS = 10_000
+const PROBE_LATENCY_DEGRADED_MS = 1_200
+
+function resolveProbeStatus(response: Response, latency: number): ProbeStatus {
+  if (response.ok) {
+    return latency > PROBE_LATENCY_DEGRADED_MS ? 'degraded' : 'up'
+  }
+  if (response.status >= 500) {
+    return 'down'
+  }
+  return 'degraded'
+}
+
+async function probeServiceUrl(
+  network: NetworkName,
+  url: string,
+  serviceLabel: 'horizon' | 'soroban'
+): Promise<ServiceProbeResult> {
+  const serviceName = `${serviceLabel}:${network}`
+  const breaker = getCircuitBreaker(serviceName, {
+    failureThreshold: 4,
+    timeout: 15_000,
+  })
+
+  if (!url) {
+    return {
+      url,
+      status: 'down',
+      latency: null,
+      breakerState: breaker.currentState,
+      error: 'URL unavailable',
+    }
+  }
+
+  const start = Date.now()
+  let response: Response | null = null
+
+  try {
+    response = await breaker.execute(async () => {
+      const controller = new AbortController()
+      const timeoutId = window.setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS)
+      try {
+        const headResponse = await rateLimitedFetch(
+          url,
+          { method: 'HEAD', cache: 'no-store', signal: controller.signal },
+          'low',
+        )
+
+        if (headResponse.status === 405 || headResponse.status === 501) {
+          return await rateLimitedFetch(
+            url,
+            { method: 'GET', cache: 'no-store', signal: controller.signal },
+            'low',
+          )
+        }
+
+        return headResponse
+      } finally {
+        window.clearTimeout(timeoutId)
+      }
+    })
+
+    const latency = Date.now() - start
+    return {
+      url,
+      status: resolveProbeStatus(response, latency),
+      latency,
+      statusCode: response.status,
+      breakerState: breaker.currentState,
+    }
+  } catch (error) {
+    return {
+      url,
+      status: 'down',
+      latency: null,
+      breakerState: breaker.currentState,
+      error: String(error),
+    }
+  }
+}
+
+export async function probeAllNetworks(): Promise<NetworkProbeResult[]> {
+  const probeKeys = Object.entries(NETWORKS) as [NetworkName, NetworkConfig][]
+  const probes = probeKeys.map(async ([network, config]) => {
+    const horizon = await probeServiceUrl(network, config.horizonUrl, 'horizon')
+    const soroban = await probeServiceUrl(network, config.sorobanUrl || '', 'soroban')
+
+    return {
+      network,
+      name: config.name,
+      horizon,
+      soroban,
+    }
+  })
+
+  return Promise.all(probes)
+}
+
 // ─── Account ──────────────────────────────────────────────────────────────────
 
 export async function fetchAccount(
