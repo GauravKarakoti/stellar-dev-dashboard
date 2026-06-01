@@ -1,21 +1,33 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../../../lib/store';
 import WidgetBase from './WidgetBase';
 import { useErrorHandler } from '../../../hooks/useErrorHandler';
 
-export default function PriceTickerWidget({ onRefresh }) {
+export interface BaseWidgetProps {
+  onRefresh?: () => void;
+}
+
+export interface PriceData {
+  xlm: {
+    price: number;
+    change24h: number;
+    volume24h: number;
+  };
+}
+
+export default function PriceTickerWidget({ onRefresh }: BaseWidgetProps) {
   const { network } = useStore();
-  const [priceData, setPriceData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [priceData, setPriceData] = useState<PriceData | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
   const { handleError } = useErrorHandler('PriceTickerWidget');
 
   const fetchPriceData = async () => {
     if (network !== 'mainnet') return; // Only show prices for mainnet
-    
+
     try {
       setLoading(true);
       // Mock price data - in a real app, you'd fetch from a price API
-      const mockData = {
+      const mockData: PriceData = {
         xlm: {
           price: 0.1234,
           change24h: 2.45,
@@ -158,8 +170,8 @@ export default function PriceTickerWidget({ onRefresh }) {
             <span style={{ color: 'var(--text-secondary)' }}>
               24h Volume:
             </span>
-            <span style={{ 
-              color: 'var(--text-primary)', 
+            <span style={{
+              color: 'var(--text-primary)',
               fontWeight: 600,
               fontFamily: 'var(--font-mono)'
             }}>

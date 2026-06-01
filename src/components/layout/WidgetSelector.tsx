@@ -11,8 +11,34 @@ import AccountStatsWidget from './widgets/AccountStatsWidget';
 import QuickActionsWidget from './widgets/QuickActionsWidget';
 import PriceTickerWidget from './widgets/PriceTickerWidget';
 
+export interface WidgetDefinition {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  component: React.ComponentType<any>;
+  defaultSize: { width: number; height: number };
+  category: string;
+}
+
+export interface WidgetInstance {
+  id: string;
+  type: string;
+  component: React.ReactNode;
+  width: number;
+  height: number;
+  span: number;
+}
+
+export interface WidgetSelectorProps {
+  onAddWidget: (widget: WidgetInstance) => void;
+  existingWidgets?: WidgetInstance[];
+  isOpen: boolean;
+  onClose: () => void;
+}
+
 // Widget definitions
-export const AVAILABLE_WIDGETS = {
+export const AVAILABLE_WIDGETS: Record<string, WidgetDefinition> = {
   balance: {
     id: 'balance',
     name: 'XLM Balance',
@@ -78,7 +104,7 @@ export const AVAILABLE_WIDGETS = {
   }
 };
 
-export const WIDGET_CATEGORIES = {
+export const WIDGET_CATEGORIES: Record<string, { name: string; icon: string; color: string }> = {
   account: { name: 'Account', icon: '👤', color: 'var(--cyan)' },
   activity: { name: 'Activity', icon: '⚡', color: 'var(--green)' },
   network: { name: 'Network', icon: '🌐', color: 'var(--amber)' },
@@ -86,24 +112,25 @@ export const WIDGET_CATEGORIES = {
   tools: { name: 'Tools', icon: '🔧', color: 'var(--text-secondary)' }
 };
 
-export default function WidgetSelector({ onAddWidget, existingWidgets = [], isOpen, onClose }) {
-  const [selectedCategory, setSelectedCategory] = useState('account');
-  const { isMobile } = useResponsive();
+export default function WidgetSelector({ onAddWidget, existingWidgets = [], isOpen, onClose }: WidgetSelectorProps) {
+  const [selectedCategory, setSelectedCategory] = useState<string>('account');
+  const { isMobile } = useResponsive() as { isMobile: boolean };
 
   if (!isOpen) return null;
 
-  const handleAddWidget = (widgetType) => {
+  const handleAddWidget = (widgetType: string) => {
     const widget = AVAILABLE_WIDGETS[widgetType];
     if (!widget) return;
 
-    const newWidget = {
+    const newWidget: WidgetInstance = {
       id: `${widgetType}-${Date.now()}`,
       type: widgetType,
       component: React.createElement(widget.component, { 
         key: `${widgetType}-${Date.now()}`,
         onRefresh: () => {} 
       }),
-      ...widget.defaultSize,
+      width: widget.defaultSize.width,
+      height: widget.defaultSize.height,
       span: 1
     };
 
@@ -116,15 +143,15 @@ export default function WidgetSelector({ onAddWidget, existingWidgets = [], isOp
     });
   };
 
-  const isWidgetAdded = (widgetType) => {
+  const isWidgetAdded = (widgetType: string) => {
     return existingWidgets.some(w => w.type === widgetType);
   };
 
-  const getWidgetsByCategory = (category) => {
+  const getWidgetsByCategory = (category: string) => {
     return Object.values(AVAILABLE_WIDGETS).filter(w => w.category === category);
   };
 
-  const overlayStyles = {
+  const overlayStyles: React.CSSProperties = {
     position: 'fixed',
     inset: 0,
     background: 'rgba(0, 0, 0, 0.5)',
@@ -136,7 +163,7 @@ export default function WidgetSelector({ onAddWidget, existingWidgets = [], isOp
     padding: isMobile ? '20px' : '40px'
   };
 
-  const modalStyles = {
+  const modalStyles: React.CSSProperties = {
     background: 'var(--bg-surface)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--radius-lg)',
@@ -148,7 +175,7 @@ export default function WidgetSelector({ onAddWidget, existingWidgets = [], isOp
     flexDirection: 'column'
   };
 
-  const headerStyles = {
+  const headerStyles: React.CSSProperties = {
     padding: isMobile ? '16px 20px' : '20px 24px',
     borderBottom: '1px solid var(--border)',
     display: 'flex',
@@ -156,7 +183,7 @@ export default function WidgetSelector({ onAddWidget, existingWidgets = [], isOp
     justifyContent: 'space-between'
   };
 
-  const contentStyles = {
+  const contentStyles: React.CSSProperties = {
     flex: 1,
     overflow: 'auto',
     padding: isMobile ? '16px 20px' : '20px 24px'
@@ -269,13 +296,13 @@ export default function WidgetSelector({ onAddWidget, existingWidgets = [], isOp
                     transition: 'var(--transition)'
                   }}
                   onClick={() => !isAdded && handleAddWidget(widget.id)}
-                  onMouseEnter={e => {
+                  onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
                     if (!isAdded) {
                       e.currentTarget.style.borderColor = 'var(--cyan)';
                       e.currentTarget.style.boxShadow = '0 4px 12px var(--cyan-glow-sm)';
                     }
                   }}
-                  onMouseLeave={e => {
+                  onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
                     if (!isAdded) {
                       e.currentTarget.style.borderColor = 'var(--border)';
                       e.currentTarget.style.boxShadow = 'none';

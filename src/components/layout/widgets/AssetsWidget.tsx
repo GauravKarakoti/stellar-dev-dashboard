@@ -5,7 +5,19 @@ import useAssetUsdEstimates, { formatEstimatedUsd } from '../../../hooks/useAsse
 import CopyableValue from '../../dashboard/CopyableValue';
 import WidgetBase from './WidgetBase';
 
-export default function AssetsWidget({ onRefresh, maxAssets = 5 }) {
+export interface AssetsWidgetProps {
+  onRefresh?: () => void;
+  maxAssets?: number;
+}
+
+export interface AssetBalance {
+  asset_type: string;
+  asset_code?: string;
+  asset_issuer?: string;
+  balance: string;
+}
+
+export default function AssetsWidget({ onRefresh, maxAssets = 5 }: AssetsWidgetProps) {
   const { accountData, connectedAddress, network } = useStore();
   
   const { getEstimate } = useAssetUsdEstimates({
@@ -15,7 +27,7 @@ export default function AssetsWidget({ onRefresh, maxAssets = 5 }) {
     refreshKey: accountData,
   });
 
-  const otherAssets = accountData?.balances?.filter(b => b.asset_type !== 'native') || [];
+  const otherAssets: AssetBalance[] = accountData?.balances?.filter((b: AssetBalance) => b.asset_type !== 'native') || [];
   const displayAssets = otherAssets.slice(0, maxAssets);
   const hasMore = otherAssets.length > maxAssets;
 
@@ -68,8 +80,8 @@ export default function AssetsWidget({ onRefresh, maxAssets = 5 }) {
                 borderBottom: i < displayAssets.length - 1 ? '1px solid var(--border)' : 'none',
                 transition: 'var(--transition)',
               }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => e.currentTarget.style.background = 'var(--bg-hover)'}
+              onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => e.currentTarget.style.background = 'transparent'}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
@@ -140,7 +152,7 @@ export default function AssetsWidget({ onRefresh, maxAssets = 5 }) {
                     fontFamily: 'var(--font-mono)', 
                     fontSize: '11px' 
                   }}>
-                    {formatEstimatedUsd(getEstimate(asset).usd)}
+                    {formatEstimatedUsd(getEstimate(asset)!.usd)}
                   </span>
                 )}
               </div>
@@ -158,7 +170,7 @@ export default function AssetsWidget({ onRefresh, maxAssets = 5 }) {
                 fontSize: '12px',
                 color: 'var(--text-muted)'
               }}>
-                +{otherAssets.length - maxAssets} more asset{otherAssets.length - maxAssets !== 1 ? 's' : ''}
+                +{(otherAssets.length) - maxAssets} more asset{(otherAssets.length) - maxAssets !== 1 ? 's' : ''}
               </div>
             </div>
           )}

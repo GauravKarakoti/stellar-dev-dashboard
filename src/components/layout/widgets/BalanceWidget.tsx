@@ -4,9 +4,13 @@ import { formatXLM } from '../../../lib/stellar';
 import useAssetUsdEstimates, { formatEstimatedUsd } from '../../../hooks/useAssetUsdEstimates';
 import WidgetBase from './WidgetBase';
 
-export default function BalanceWidget({ onRefresh }) {
+export interface BaseWidgetProps {
+  onRefresh?: () => void;
+}
+
+export default function BalanceWidget({ onRefresh }: BaseWidgetProps) {
   const { accountData, connectedAddress, network } = useStore();
-  
+
   const { getEstimate } = useAssetUsdEstimates({
     balances: accountData?.balances || [],
     connectedAddress,
@@ -14,10 +18,10 @@ export default function BalanceWidget({ onRefresh }) {
     refreshKey: accountData,
   });
 
-  const xlmBalance = accountData?.balances?.find(b => b.asset_type === 'native');
+  const xlmBalance = accountData?.balances?.find((b: any) => b.asset_type === 'native');
   const xlmEstimate = xlmBalance ? getEstimate(xlmBalance) : null;
 
-  const totalUsdValue = accountData?.balances?.reduce((total, balance) => {
+  const totalUsdValue = accountData?.balances?.reduce((total: number, balance: any) => {
     const estimate = getEstimate(balance);
     return total + (estimate?.usd || 0);
   }, 0) || 0;
@@ -100,8 +104,8 @@ export default function BalanceWidget({ onRefresh }) {
             <span style={{ color: 'var(--text-secondary)' }}>
               Total Portfolio:
             </span>
-            <span style={{ 
-              color: 'var(--text-primary)', 
+            <span style={{
+              color: 'var(--text-primary)',
               fontWeight: 600,
               fontFamily: 'var(--font-mono)'
             }}>

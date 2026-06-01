@@ -4,22 +4,27 @@ import CopyableValue from '../../dashboard/CopyableValue';
 import WidgetBase from './WidgetBase';
 import { format } from 'date-fns';
 
-export default function TransactionsWidget({ onRefresh, maxTransactions = 5 }) {
+export interface TransactionsWidgetProps {
+  onRefresh?: () => void;
+  maxTransactions?: number;
+}
+
+export default function TransactionsWidget({ onRefresh, maxTransactions = 5 }: TransactionsWidgetProps) {
   const { transactions, txLoading, network } = useStore();
-  
-  const displayTransactions = transactions.slice(0, maxTransactions);
-  const hasMore = transactions.length > maxTransactions;
+
+  const displayTransactions = transactions?.slice(0, maxTransactions) || [];
+  const hasMore = (transactions?.length || 0) > maxTransactions;
 
   return (
     <WidgetBase
       title="Recent Transactions"
-      subtitle={`Latest ${Math.min(transactions.length, maxTransactions)} transaction${Math.min(transactions.length, maxTransactions) !== 1 ? 's' : ''}`}
+      subtitle={`Latest ${Math.min(transactions?.length || 0, maxTransactions)} transaction${Math.min(transactions?.length || 0, maxTransactions) !== 1 ? 's' : ''}`}
       icon="⇄"
       onRefresh={onRefresh}
       loading={txLoading}
       contentPadding={false}
     >
-      {transactions.length === 0 ? (
+      {!transactions || transactions.length === 0 ? (
         <div style={{
           display: 'flex',
           flexDirection: 'column',
@@ -48,8 +53,8 @@ export default function TransactionsWidget({ onRefresh, maxTransactions = 5 }) {
         </div>
       ) : (
         <div style={{ padding: '4px 0' }}>
-          {displayTransactions.map((tx, i) => (
-            <div 
+          {displayTransactions.map((tx: any, i: number) => (
+            <div
               key={tx.id}
               style={{
                 display: 'flex',
@@ -59,41 +64,41 @@ export default function TransactionsWidget({ onRefresh, maxTransactions = 5 }) {
                 borderBottom: i < displayTransactions.length - 1 ? '1px solid var(--border)' : 'none',
                 transition: 'var(--transition)',
               }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => e.currentTarget.style.background = 'var(--bg-hover)'}
+              onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => e.currentTarget.style.background = 'transparent'}
             >
               {/* Status Indicator */}
               <div style={{
-                width: '8px', 
-                height: '8px', 
+                width: '8px',
+                height: '8px',
                 borderRadius: '50%',
                 background: tx.successful ? 'var(--green)' : 'var(--red)',
                 flexShrink: 0,
               }} />
-              
+
               {/* Transaction Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <CopyableValue
                   value={tx.hash}
                   title="Copy transaction hash"
-                  containerStyle={{ 
-                    fontSize: '12px', 
-                    color: 'var(--text-primary)', 
+                  containerStyle={{
+                    fontSize: '12px',
+                    color: 'var(--text-primary)',
                     fontFamily: 'var(--font-mono)',
                     marginBottom: '4px'
                   }}
-                  textStyle={{ 
-                    overflow: 'hidden', 
-                    textOverflow: 'ellipsis', 
+                  textStyle={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                     maxWidth: '200px'
                   }}
                 >
                   {tx.hash}
                 </CopyableValue>
-                
-                <div style={{ 
-                  fontSize: '11px', 
+
+                <div style={{
+                  fontSize: '11px',
                   color: 'var(--text-muted)',
                   display: 'flex',
                   alignItems: 'center',
@@ -108,25 +113,25 @@ export default function TransactionsWidget({ onRefresh, maxTransactions = 5 }) {
                   </span>
                 </div>
               </div>
-              
+
               {/* External Link */}
               <a
                 href={`https://stellar.expert/explorer/${network}/tx/${tx.hash}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ 
-                  fontSize: '14px', 
-                  color: 'var(--cyan)', 
+                style={{
+                  fontSize: '14px',
+                  color: 'var(--cyan)',
                   flexShrink: 0,
                   padding: '4px',
                   borderRadius: 'var(--radius-sm)',
                   transition: 'var(--transition)'
                 }}
                 title="View on Stellar Expert"
-                onMouseEnter={e => {
+                onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
                   e.currentTarget.style.background = 'var(--cyan-glow)';
                 }}
-                onMouseLeave={e => {
+                onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
                   e.currentTarget.style.background = 'transparent';
                 }}
               >
@@ -134,7 +139,7 @@ export default function TransactionsWidget({ onRefresh, maxTransactions = 5 }) {
               </a>
             </div>
           ))}
-          
+
           {hasMore && (
             <div style={{
               padding: '12px 18px',
@@ -146,7 +151,7 @@ export default function TransactionsWidget({ onRefresh, maxTransactions = 5 }) {
                 fontSize: '12px',
                 color: 'var(--text-muted)'
               }}>
-                +{transactions.length - maxTransactions} more transaction{transactions.length - maxTransactions !== 1 ? 's' : ''}
+                +{(transactions?.length || 0) - maxTransactions} more transaction{(transactions?.length || 0) - maxTransactions !== 1 ? 's' : ''}
               </div>
             </div>
           )}

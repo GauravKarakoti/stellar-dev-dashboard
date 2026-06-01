@@ -1,10 +1,15 @@
+import React from 'react';
 import { useStore } from '../../../lib/store';
 import WidgetBase from './WidgetBase';
 import { useResponsive } from '../../../hooks/useResponsive';
 
-export default function QuickActionsWidget({ onRefresh }) {
+export interface BaseWidgetProps {
+  onRefresh?: () => void;
+}
+
+export default function QuickActionsWidget({ onRefresh }: BaseWidgetProps) {
   const { setActiveTab } = useStore();
-  const { isMobile } = useResponsive();
+  const { isMobile } = useResponsive() as { isMobile: boolean };
 
   const actions = [
     {
@@ -67,12 +72,12 @@ export default function QuickActionsWidget({ onRefresh }) {
               alignItems: 'center',
               gap: '8px'
             }}
-            onMouseEnter={e => {
+            onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
               e.currentTarget.style.borderColor = action.color;
               e.currentTarget.style.background = `${action.color}10`;
               e.currentTarget.style.transform = 'translateY(-2px)';
             }}
-            onMouseLeave={e => {
+            onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
               e.currentTarget.style.borderColor = 'var(--border)';
               e.currentTarget.style.background = 'var(--bg-elevated)';
               e.currentTarget.style.transform = 'translateY(0)';
@@ -81,7 +86,7 @@ export default function QuickActionsWidget({ onRefresh }) {
             <div style={{ fontSize: '24px' }}>
               {action.icon}
             </div>
-            
+
             <div style={{
               fontSize: '13px',
               fontWeight: 600,
@@ -90,7 +95,7 @@ export default function QuickActionsWidget({ onRefresh }) {
             }}>
               {action.label}
             </div>
-            
+
             <div style={{
               fontSize: '11px',
               color: 'var(--text-muted)',

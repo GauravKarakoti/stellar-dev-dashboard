@@ -3,14 +3,14 @@
  * On mobile: renders as a slide-in drawer controlled by isMobileMenuOpen.
  * On desktop: renders as a fixed sidebar.
  */
-import React from 'react'
-import { useStore } from '../../lib/store'
-import { useResponsive } from '../../hooks/useResponsive'
-import Sidebar from './Sidebar'
+import React from 'react';
+import { useStore } from '../../lib/store';
+import { useResponsive } from '../../hooks/useResponsive';
+import Sidebar from './Sidebar';
 
 export default function ResponsiveSidebar() {
-  const { isMobileMenuOpen, setMobileMenuOpen } = useStore()
-  const { isMobile } = useResponsive()
+  const { isMobileMenuOpen, setMobileMenuOpen } = useStore();
+  const { isMobile } = useResponsive() as { isMobile: boolean };
 
   return (
     <>
@@ -24,5 +24,5 @@ export default function ResponsiveSidebar() {
       )}
       <Sidebar isMobile={isMobile} />
     </>
-  )
+  );
 }

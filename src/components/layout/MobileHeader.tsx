@@ -1,11 +1,11 @@
-import React from 'react'
-import { useStore } from '../../lib/store'
+import React from 'react';
+import { useStore } from '../../lib/store';
 
 export default function MobileHeader() {
-  const { setMobileMenuOpen, theme, toggleTheme } = useStore()
+  const { setMobileMenuOpen, theme, toggleTheme } = useStore();
 
   return (
-    <header 
+    <header
       className="mobile-only"
       style={{
         position: 'fixed',
@@ -37,19 +37,19 @@ export default function MobileHeader() {
           justifyContent: 'center',
           transition: 'var(--transition)',
         }}
-        onMouseEnter={e => {
-          e.currentTarget.style.color = 'var(--text-primary)'
-          e.currentTarget.style.background = 'var(--bg-hover)'
+        onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+          e.currentTarget.style.color = 'var(--text-primary)';
+          e.currentTarget.style.background = 'var(--bg-hover)';
         }}
-        onMouseLeave={e => {
-          e.currentTarget.style.color = 'var(--text-secondary)'
-          e.currentTarget.style.background = 'transparent'
+        onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+          e.currentTarget.style.color = 'var(--text-secondary)';
+          e.currentTarget.style.background = 'transparent';
         }}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="3" y1="6" x2="21" y2="6"/>
-          <line x1="3" y1="12" x2="21" y2="12"/>
-          <line x1="3" y1="18" x2="21" y2="18"/>
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
         </svg>
       </button>
 
@@ -84,17 +84,17 @@ export default function MobileHeader() {
           transition: 'var(--transition)',
         }}
         title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
-        onMouseEnter={e => {
-          e.currentTarget.style.color = 'var(--text-primary)'
-          e.currentTarget.style.background = 'var(--bg-hover)'
+        onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+          e.currentTarget.style.color = 'var(--text-primary)';
+          e.currentTarget.style.background = 'var(--bg-hover)';
         }}
-        onMouseLeave={e => {
-          e.currentTarget.style.color = 'var(--text-secondary)'
-          e.currentTarget.style.background = 'transparent'
+        onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+          e.currentTarget.style.color = 'var(--text-secondary)';
+          e.currentTarget.style.background = 'transparent';
         }}
       >
         {theme === 'light' ? '☾' : '☀'}
       </button>
     </header>
-  )
+  );
 }

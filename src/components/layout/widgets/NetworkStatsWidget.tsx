@@ -5,15 +5,19 @@ import { useErrorHandler } from '../../../hooks/useErrorHandler';
 import WidgetBase from './WidgetBase';
 import { format } from 'date-fns';
 
-export default function NetworkStatsWidget({ onRefresh }) {
-  const { 
-    network, 
-    networkStats, 
-    setNetworkStats, 
-    statsLoading, 
-    setStatsLoading 
+export interface BaseWidgetProps {
+  onRefresh?: () => void;
+}
+
+export default function NetworkStatsWidget({ onRefresh }: BaseWidgetProps) {
+  const {
+    network,
+    networkStats,
+    setNetworkStats,
+    statsLoading,
+    setStatsLoading
   } = useStore();
-  
+
   const { handleError } = useErrorHandler('NetworkStatsWidget');
 
   const loadNetworkStats = async () => {
@@ -76,7 +80,7 @@ export default function NetworkStatsWidget({ onRefresh }) {
         gap: '16px',
         height: '100%'
       }}>
-        {stats.map((stat, index) => (
+        {stats.map((stat) => (
           <div
             key={stat.label}
             style={{
@@ -89,11 +93,11 @@ export default function NetworkStatsWidget({ onRefresh }) {
               borderRadius: 'var(--radius-md)',
               transition: 'var(--transition)'
             }}
-            onMouseEnter={e => {
+            onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
               e.currentTarget.style.borderColor = stat.color;
               e.currentTarget.style.boxShadow = `0 0 0 1px ${stat.color}20`;
             }}
-            onMouseLeave={e => {
+            onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
               e.currentTarget.style.borderColor = 'var(--border)';
               e.currentTarget.style.boxShadow = 'none';
             }}
@@ -104,7 +108,7 @@ export default function NetworkStatsWidget({ onRefresh }) {
             }}>
               {stat.icon}
             </div>
-            
+
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
                 fontSize: '11px',
@@ -115,7 +119,7 @@ export default function NetworkStatsWidget({ onRefresh }) {
               }}>
                 {stat.label}
               </div>
-              
+
               <div style={{
                 fontSize: '16px',
                 fontWeight: 700,
@@ -127,7 +131,7 @@ export default function NetworkStatsWidget({ onRefresh }) {
               }}>
                 {stat.value}
               </div>
-              
+
               {stat.subtitle && (
                 <div style={{
                   fontSize: '11px',

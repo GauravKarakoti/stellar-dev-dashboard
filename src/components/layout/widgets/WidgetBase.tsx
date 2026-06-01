@@ -1,14 +1,28 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { useResponsive } from '../../../hooks/useResponsive';
+
+export interface WidgetBaseProps {
+  title?: string;
+  subtitle?: string;
+  icon?: ReactNode;
+  children?: ReactNode;
+  loading?: boolean;
+  error?: { message?: string } | Error | null;
+  onRefresh?: () => void;
+  headerActions?: ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+  contentPadding?: boolean;
+}
 
 /**
  * Base widget component with common styling and functionality
  */
-export default function WidgetBase({ 
-  title, 
+export default function WidgetBase({
+  title,
   subtitle,
   icon,
-  children, 
+  children,
   loading = false,
   error = null,
   onRefresh,
@@ -16,10 +30,10 @@ export default function WidgetBase({
   className = '',
   style = {},
   contentPadding = true
-}) {
-  const { isMobile } = useResponsive();
+}: WidgetBaseProps) {
+  const { isMobile } = useResponsive() as { isMobile: boolean };
 
-  const containerStyles = {
+  const containerStyles: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     height: '100%',
@@ -30,7 +44,7 @@ export default function WidgetBase({
     ...style
   };
 
-  const headerStyles = {
+  const headerStyles: React.CSSProperties = {
     padding: isMobile ? '12px 16px' : '14px 18px',
     borderBottom: '1px solid var(--border)',
     background: 'var(--bg-surface)',
@@ -40,7 +54,7 @@ export default function WidgetBase({
     minHeight: '48px'
   };
 
-  const titleStyles = {
+  const titleStyles: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
@@ -48,7 +62,7 @@ export default function WidgetBase({
     minWidth: 0
   };
 
-  const contentStyles = {
+  const contentStyles: React.CSSProperties = {
     flex: 1,
     padding: contentPadding ? (isMobile ? '16px' : '18px') : '0',
     overflow: 'auto',
@@ -94,7 +108,7 @@ export default function WidgetBase({
               )}
             </div>
           </div>
-          
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {onRefresh && (
               <button
@@ -111,13 +125,13 @@ export default function WidgetBase({
                   fontSize: '14px'
                 }}
                 title="Refresh widget"
-                onMouseEnter={e => {
+                onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
                   if (!loading) {
                     e.currentTarget.style.color = 'var(--text-primary)';
                     e.currentTarget.style.background = 'var(--bg-hover)';
                   }
                 }}
-                onMouseLeave={e => {
+                onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
                   if (!loading) {
                     e.currentTarget.style.color = 'var(--text-secondary)';
                     e.currentTarget.style.background = 'none';
@@ -180,7 +194,7 @@ export default function WidgetBase({
               color: 'var(--text-muted)',
               lineHeight: 1.4
             }}>
-              {error.message || 'Something went wrong'}
+              {(error as Error).message || 'Something went wrong'}
             </div>
             {onRefresh && (
               <button

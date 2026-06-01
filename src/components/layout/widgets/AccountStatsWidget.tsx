@@ -1,9 +1,14 @@
+import React from 'react';
 import { useStore } from '../../../lib/store';
 import { shortAddress } from '../../../lib/stellar';
 import CopyableValue from '../../dashboard/CopyableValue';
 import WidgetBase from './WidgetBase';
 
-export default function AccountStatsWidget({ onRefresh }) {
+export interface BaseWidgetProps {
+  onRefresh?: () => void;
+}
+
+export default function AccountStatsWidget({ onRefresh }: BaseWidgetProps) {
   const { accountData, transactions, operations, connectedAddress, txLoading, opsLoading } = useStore();
 
   const stats = [
@@ -23,7 +28,7 @@ export default function AccountStatsWidget({ onRefresh }) {
     },
     {
       label: 'Transactions',
-      value: txLoading ? '...' : transactions.length.toString(),
+      value: txLoading ? '...' : (transactions?.length || 0).toString(),
       subtitle: 'recent',
       icon: '⇄',
       color: 'var(--green)',
@@ -31,7 +36,7 @@ export default function AccountStatsWidget({ onRefresh }) {
     },
     {
       label: 'Operations',
-      value: opsLoading ? '...' : operations.length.toString(),
+      value: opsLoading ? '...' : (operations?.length || 0).toString(),
       subtitle: 'recent',
       icon: '⚙️',
       color: 'var(--text-secondary)',
@@ -73,17 +78,17 @@ export default function AccountStatsWidget({ onRefresh }) {
                 textAlign: 'center',
                 transition: 'var(--transition)'
               }}
-              onMouseEnter={e => {
+              onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
                 e.currentTarget.style.borderColor = stat.color;
               }}
-              onMouseLeave={e => {
+              onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
                 e.currentTarget.style.borderColor = 'var(--border)';
               }}
             >
               <div style={{ fontSize: '16px', marginBottom: '4px' }}>
                 {stat.icon}
               </div>
-              
+
               <div style={{
                 fontSize: '14px',
                 fontWeight: 700,
@@ -105,7 +110,7 @@ export default function AccountStatsWidget({ onRefresh }) {
                   stat.value
                 )}
               </div>
-              
+
               <div style={{
                 fontSize: '10px',
                 color: 'var(--text-muted)',
@@ -138,7 +143,7 @@ export default function AccountStatsWidget({ onRefresh }) {
             }}>
               🔐 Security Thresholds
             </div>
-            
+
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(3, 1fr)',
@@ -186,13 +191,13 @@ export default function AccountStatsWidget({ onRefresh }) {
             }}>
               ✍️ Signers ({signers.length})
             </div>
-            
+
             <div style={{
               display: 'flex',
               flexDirection: 'column',
               gap: '4px'
             }}>
-              {signers.slice(0, 3).map((signer) => (
+              {signers.slice(0, 3).map((signer: any) => (
                 <div key={signer.key} style={{
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -202,7 +207,7 @@ export default function AccountStatsWidget({ onRefresh }) {
                   <CopyableValue
                     value={signer.key}
                     title="Copy signer key"
-                    textStyle={{ 
+                    textStyle={{
                       color: signer.key === connectedAddress ? 'var(--cyan)' : 'var(--text-secondary)',
                       fontFamily: 'var(--font-mono)'
                     }}
@@ -210,7 +215,7 @@ export default function AccountStatsWidget({ onRefresh }) {
                     {shortAddress(signer.key, 4)}
                     {signer.key === connectedAddress && ' (you)'}
                   </CopyableValue>
-                  <span style={{ 
+                  <span style={{
                     color: 'var(--text-muted)',
                     fontFamily: 'var(--font-mono)'
                   }}>

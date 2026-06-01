@@ -2,7 +2,19 @@ import React, { useMemo, useState } from "react";
 import { Search, Save, X } from "lucide-react";
 import { useSearch } from "../../hooks/useSearch";
 
-export default function SearchBar({ onSelectResult }) {
+export interface SearchResult {
+  id: string;
+  label: string;
+  type: string;
+  meta?: string;
+  [key: string]: any;
+}
+
+export interface SearchBarProps {
+  onSelectResult?: (result: SearchResult) => void;
+}
+
+export default function SearchBar({ onSelectResult }: SearchBarProps) {
   const {
     query,
     setQuery,
@@ -12,8 +24,9 @@ export default function SearchBar({ onSelectResult }) {
     removeSavedSearch,
     applySavedSearch,
   } = useSearch();
-  const [nameInput, setNameInput] = useState("");
-  const [open, setOpen] = useState(false);
+  
+  const [nameInput, setNameInput] = useState<string>("");
+  const [open, setOpen] = useState<boolean>(false);
 
   const showResults = open && query.trim().length > 0;
   const hasResults = results.length > 0;
@@ -44,7 +57,7 @@ export default function SearchBar({ onSelectResult }) {
           value={query}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 120)}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)}
           placeholder="Search transactions, operations, and account data"
           style={{
             width: "100%",
@@ -67,6 +80,7 @@ export default function SearchBar({ onSelectResult }) {
             padding: "5px",
             display: "flex",
             alignItems: "center",
+            cursor: 'pointer'
           }}
         >
           <Save size={14} />
@@ -76,7 +90,7 @@ export default function SearchBar({ onSelectResult }) {
       <div style={{ display: "flex", gap: "8px", marginTop: "6px", alignItems: "center" }}>
         <input
           value={nameInput}
-          onChange={(event) => setNameInput(event.target.value)}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setNameInput(event.target.value)}
           placeholder="Saved search name"
           style={{
             border: "1px solid var(--border)",
@@ -91,7 +105,7 @@ export default function SearchBar({ onSelectResult }) {
         />
 
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-          {topSaved.map((entry) => (
+          {topSaved.map((entry: any) => (
             <span
               key={entry.name}
               style={{
@@ -114,6 +128,7 @@ export default function SearchBar({ onSelectResult }) {
                   color: "inherit",
                   fontSize: "11px",
                   fontFamily: "var(--font-mono)",
+                  cursor: 'pointer'
                 }}
               >
                 {entry.name}
@@ -126,6 +141,7 @@ export default function SearchBar({ onSelectResult }) {
                   color: "var(--text-muted)",
                   display: "flex",
                   alignItems: "center",
+                  cursor: 'pointer'
                 }}
               >
                 <X size={11} />
@@ -156,7 +172,7 @@ export default function SearchBar({ onSelectResult }) {
               No results for this query.
             </div>
           )}
-          {results.map((result) => (
+          {results.map((result: SearchResult) => (
             <button
               key={result.id}
               onClick={() => onSelectResult?.(result)}
@@ -170,7 +186,10 @@ export default function SearchBar({ onSelectResult }) {
                 display: "flex",
                 flexDirection: "column",
                 gap: "4px",
+                cursor: 'pointer'
               }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               <span style={{ color: "var(--text-primary)", fontSize: "12px", fontFamily: "var(--font-mono)" }}>
                 {result.label}

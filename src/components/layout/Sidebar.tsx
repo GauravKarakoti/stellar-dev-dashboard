@@ -1,13 +1,20 @@
-import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useStore } from '../../lib/store'
-import CopyableValue from '../dashboard/CopyableValue'
-import { NETWORKS, updateCustomNetworkConfig, switchToCustomProfile, loadCustomNetworkProfiles } from '../../lib/stellar'
-import { getActiveProfile } from '../../lib/userPreferences'
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useStore } from '../../lib/store';
+import CopyableValue from '../dashboard/CopyableValue';
+import { NETWORKS, updateCustomNetworkConfig, switchToCustomProfile, loadCustomNetworkProfiles } from '../../lib/stellar';
+import { getActiveProfile } from '../../lib/userPreferences';
 
-const SESSION_API_KEY = 'stellar_custom_api_key'
+const SESSION_API_KEY = 'stellar_custom_api_key';
 
-const NAV_ITEMS = [
+interface NavItem {
+  id?: string;
+  type?: 'header' | 'link';
+  label: string;
+  icon?: string;
+}
+
+const NAV_ITEMS: NavItem[] = [
   { type: 'header', label: 'ANALYTICS' },
   { id: 'overview', label: 'Overview', icon: '◈' },
   { id: 'account', label: 'Account', icon: '◉' },
@@ -18,19 +25,19 @@ const NAV_ITEMS = [
   { id: 'assets', label: 'Assets', icon: '💎' },
   { id: 'anchors', label: 'Anchors', icon: '⚓' },
   { id: 'search', label: 'Search', icon: '🔍' },
-  
+
   { type: 'header', label: 'NETWORK' },
   { id: 'network', label: 'Network Info', icon: '◎' },
   { id: 'realtime', label: 'Real-Time', icon: '◉' },
   { id: 'liveActivity', label: 'Live Activity', icon: '⚡' },
   { id: 'cacheStats', label: 'Cache Stats', icon: '⊞' },
-  
+
   { type: 'header', label: 'BUILD' },
   { id: 'builder', label: 'Builder', icon: '⚒' },
   { id: 'txSimulator', label: 'Simulator', icon: '▷' },
   { id: 'advancedSim', label: 'Advanced', icon: '⚡' },
   { id: 'faucet', label: 'Faucet', icon: '⬡' },
-  
+
   { type: 'header', label: 'TOOLS' },
   { id: 'wallet', label: 'Wallet', icon: '⊡' },
   { id: 'signer', label: 'Signer', icon: '✎' },
@@ -41,59 +48,80 @@ const NAV_ITEMS = [
   { id: 'systemHealth', label: 'Health', icon: '⚕' },
   { id: 'settings', label: 'Settings', icon: '⚙' },
   { id: 'audit', label: 'Audit', icon: '⊟' },
-]
+];
 
-export default function Sidebar({ isMobile = false }) {
-  const navigate = useNavigate()
-  const { 
-    activeTab, 
-    network, 
-    setNetwork, 
-    connectedAddress, 
-    theme, 
+export interface SidebarProps {
+  isMobile?: boolean;
+}
+
+export interface CustomProfile {
+  id: string;
+  name: string;
+  horizonUrl: string;
+  sorobanUrl?: string;
+  passphrase: string;
+}
+
+export default function Sidebar({ isMobile = false }: SidebarProps) {
+  const navigate = useNavigate();
+  const {
+    activeTab,
+    network,
+    setNetwork,
+    connectedAddress,
+    theme,
     toggleTheme,
     isMobileMenuOpen,
     setMobileMenuOpen,
-  } = useStore()
+  } = useStore();
 
-  const [customProfiles, setCustomProfiles] = useState([])
-  const [activeProfileId, setActiveProfileId] = useState(null)
+  const [customProfiles, setCustomProfiles] = useState<CustomProfile[]>([]);
+  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
+  const [customHeaderName, setCustomHeaderName] = useState<string>('');
+  const [customHeaderValue, setCustomHeaderValue] = useState<string>('');
 
   // Load custom profiles on mount (Issue #188)
   useEffect(() => {
     if (network === 'custom') {
-      loadCustomNetworkProfiles().then(profiles => {
-        setCustomProfiles(profiles)
+      loadCustomNetworkProfiles().then((profiles: CustomProfile[]) => {
+        setCustomProfiles(profiles);
         // Load active profile
-        getActiveProfile().then(profile => {
+        getActiveProfile().then((profile: CustomProfile | null) => {
           if (profile) {
-            setActiveProfileId(profile.id)
+            setActiveProfileId(profile.id);
             // Populate the network config
             updateCustomNetworkConfig({
               horizonUrl: profile.horizonUrl,
               sorobanUrl: profile.sorobanUrl,
               passphrase: profile.passphrase,
-            })
+            });
           }
-        })
-      })
+        });
+      });
     }
-  }, [network])
+  }, [network]);
 
-  const handleNavClick = (tabId) => {
-    navigate(`/${tabId}`)
-    setMobileMenuOpen(false) // Close mobile menu after navigation
-  }
+  const handleNavClick = (tabId: string) => {
+    navigate(`/${tabId}`);
+    setMobileMenuOpen(false);
+  };
+
+  const handleSwitchProfile = (id: string) => {
+    setActiveProfileId(id);
+    if (id && typeof switchToCustomProfile === 'function') {
+      switchToCustomProfile(id);
+    }
+  };
 
   // Restore custom API key from sessionStorage on mount
   useEffect(() => {
-    const saved = sessionStorage.getItem(SESSION_API_KEY)
+    const saved = sessionStorage.getItem(SESSION_API_KEY);
     if (saved) {
-      updateCustomNetworkConfig({ customHeaders: { Authorization: `Bearer ${saved}` } })
+      updateCustomNetworkConfig({ customHeaders: { Authorization: `Bearer ${saved}` } });
     }
-  }, [])
+  }, []);
 
-  const sidebarStyles = {
+  const sidebarStyles: React.CSSProperties = {
     width: isMobile ? 'var(--sidebar-width-mobile)' : 'var(--sidebar-width)',
     minHeight: '100vh',
     background: 'var(--bg-surface)',
@@ -108,9 +136,9 @@ export default function Sidebar({ isMobile = false }) {
     transform: isMobile ? (isMobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)') : 'translateX(0)',
     transition: 'transform var(--transition)',
     boxShadow: isMobile && isMobileMenuOpen ? '4px 0 20px rgba(0, 0, 0, 0.3)' : 'none',
-  }
+  };
 
-  const customInputStyle = {
+  const customInputStyle: React.CSSProperties = {
     width: '100%',
     padding: '6px 10px',
     fontSize: '10px',
@@ -120,15 +148,18 @@ export default function Sidebar({ isMobile = false }) {
     borderRadius: 'var(--radius-sm)',
     color: 'var(--text-primary)',
     outline: 'none',
-  }
+  };
 
-  const updateCustomHeader = (name, value) => {
-    setCustomHeaderName(name)
-    setCustomHeaderValue(value)
+  const updateCustomHeader = (name: string, value: string) => {
+    setCustomHeaderName(name);
+    setCustomHeaderValue(value);
+    
+    const updatedHeaders: Record<string, string> = name.trim() && value.trim() ? { [name.trim()]: value.trim() } : {};
+    
     updateCustomNetworkConfig({
-      headers: name.trim() && value.trim() ? { [name.trim()]: value.trim() } : {},
-    })
-  }
+      headers: updatedHeaders,
+    });
+  };
 
   return (
     <>
@@ -154,13 +185,13 @@ export default function Sidebar({ isMobile = false }) {
                 cursor: 'pointer',
                 transition: 'var(--transition)',
               }}
-              onMouseEnter={e => {
-                e.currentTarget.style.color = 'var(--text-primary)'
-                e.currentTarget.style.background = 'var(--bg-elevated)'
+              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+                e.currentTarget.style.color = 'var(--text-primary)';
+                e.currentTarget.style.background = 'var(--bg-elevated)';
               }}
-              onMouseLeave={e => {
-                e.currentTarget.style.color = 'var(--text-secondary)'
-                e.currentTarget.style.background = 'var(--bg-hover)'
+              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+                e.currentTarget.style.color = 'var(--text-secondary)';
+                e.currentTarget.style.background = 'var(--bg-hover)';
               }}
             >
               ✕
@@ -191,7 +222,7 @@ export default function Sidebar({ isMobile = false }) {
           <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '10px', letterSpacing: '1px' }}>NETWORK</div>
           <select
             value={network}
-            onChange={(e) => setNetwork(e.target.value)}
+            onChange={(e) => setNetwork(e.target.value as any)}
             style={{
               width: '100%',
               padding: '10px',
@@ -208,7 +239,7 @@ export default function Sidebar({ isMobile = false }) {
               appearance: 'none',
             }}
           >
-            {Object.entries(NETWORKS).map(([id, config]) => (
+            {Object.entries(NETWORKS).map(([id, config]: [string, any]) => (
               <option key={id} value={id} style={{ background: 'var(--bg-surface)' }}>
                 {config.name}
               </option>
@@ -217,7 +248,6 @@ export default function Sidebar({ isMobile = false }) {
 
           {network === 'custom' && (
             <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {/* Profile Selector (Issue #188) */}
               {customProfiles.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div style={{ fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
@@ -240,25 +270,25 @@ export default function Sidebar({ isMobile = false }) {
                   </select>
                 </div>
               )}
-              
+
               <input
                 placeholder="Horizon URL"
                 key={`horizon-${activeProfileId}`}
-                defaultValue={NETWORKS.custom.horizonUrl}
+                defaultValue={(NETWORKS as any).custom?.horizonUrl}
                 style={customInputStyle}
                 onChange={(e) => updateCustomNetworkConfig({ horizonUrl: e.target.value.trim() })}
               />
               <input
                 placeholder="Soroban RPC URL"
                 key={`soroban-${activeProfileId}`}
-                defaultValue={NETWORKS.custom.sorobanUrl}
+                defaultValue={(NETWORKS as any).custom?.sorobanUrl}
                 style={customInputStyle}
                 onChange={(e) => updateCustomNetworkConfig({ sorobanUrl: e.target.value.trim() })}
               />
               <input
                 placeholder="Network Passphrase"
                 key={`passphrase-${activeProfileId}`}
-                defaultValue={NETWORKS.custom.passphrase}
+                defaultValue={(NETWORKS as any).custom?.passphrase}
                 style={customInputStyle}
                 onChange={(e) => updateCustomNetworkConfig({ passphrase: e.target.value.trim() })}
               />
@@ -268,13 +298,13 @@ export default function Sidebar({ isMobile = false }) {
                 defaultValue={sessionStorage.getItem(SESSION_API_KEY) || ''}
                 style={customInputStyle}
                 onChange={(e) => {
-                  const val = e.target.value.trim()
+                  const val = e.target.value.trim();
                   if (val) {
-                    sessionStorage.setItem(SESSION_API_KEY, val)
-                    updateCustomNetworkConfig({ customHeaders: { Authorization: `Bearer ${val}` } })
+                    sessionStorage.setItem(SESSION_API_KEY, val);
+                    updateCustomNetworkConfig({ customHeaders: { Authorization: `Bearer ${val}` } });
                   } else {
-                    sessionStorage.removeItem(SESSION_API_KEY)
-                    updateCustomNetworkConfig({ customHeaders: {} })
+                    sessionStorage.removeItem(SESSION_API_KEY);
+                    updateCustomNetworkConfig({ customHeaders: {} });
                   }
                 }}
               />
@@ -298,14 +328,14 @@ export default function Sidebar({ isMobile = false }) {
                 }}>
                   {item.label}
                 </div>
-              )
+              );
             }
-            const isActive = activeTab === item.id
-            const isDisabled = item.id === 'faucet' && network === 'mainnet'
+            const isActive = activeTab === item.id;
+            const isDisabled = item.id === 'faucet' && network === 'mainnet';
             return (
               <button
                 key={item.id}
-                onClick={() => !isDisabled && handleNavClick(item.id)}
+                onClick={() => !isDisabled && item.id && handleNavClick(item.id)}
                 disabled={isDisabled}
                 className="touch-target"
                 style={{
@@ -327,16 +357,16 @@ export default function Sidebar({ isMobile = false }) {
                   opacity: isDisabled ? 0.4 : 1,
                   animationDelay: `${i * 0.04}s`,
                 }}
-                onMouseEnter={e => {
+                onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
                   if (!isActive && !isDisabled) {
-                    e.currentTarget.style.background = 'var(--bg-hover)'
-                    e.currentTarget.style.color = 'var(--text-primary)'
+                    e.currentTarget.style.background = 'var(--bg-hover)';
+                    e.currentTarget.style.color = 'var(--text-primary)';
                   }
                 }}
-                onMouseLeave={e => {
+                onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
                   if (!isActive && !isDisabled) {
-                    e.currentTarget.style.background = 'transparent'
-                    e.currentTarget.style.color = 'var(--text-secondary)'
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
                   }
                 }}
               >
@@ -352,7 +382,7 @@ export default function Sidebar({ isMobile = false }) {
                   }} />
                 )}
               </button>
-            )
+            );
           })}
         </nav>
 
@@ -407,13 +437,13 @@ export default function Sidebar({ isMobile = false }) {
               transition: 'var(--transition)',
             }}
             title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
-            onMouseEnter={e => {
-              e.currentTarget.style.color = 'var(--text-primary)'
-              e.currentTarget.style.background = 'var(--bg-hover)'
+            onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+              e.currentTarget.style.color = 'var(--text-primary)';
+              e.currentTarget.style.background = 'var(--bg-hover)';
             }}
-            onMouseLeave={e => {
-              e.currentTarget.style.color = 'var(--text-secondary)'
-              e.currentTarget.style.background = 'transparent'
+            onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.background = 'transparent';
             }}
           >
             {theme === 'light' ? '☾' : '☀'}
@@ -421,5 +451,5 @@ export default function Sidebar({ isMobile = false }) {
         </div>
       </aside>
     </>
-  )
+  );
 }
