@@ -61,6 +61,7 @@ import GlobalSearch from './components/search/GlobalSearch'
 import UserPreferences from './components/preferences/UserPreferences'
 import MobileNavigation from './components/layout/MobileNavigation'
 import KeyboardNavigation from './components/accessibility/KeyboardNavigation'
+import OfflineBanner from './components/layout/OfflineBanner'
 
 interface SearchResult {
   type?: string
@@ -306,6 +307,7 @@ function DashboardLayout() {
 
   return (
     <ErrorBoundary onRetry={handleRetry} maxRetries={3}>
+      <OfflineBanner />
       <div
         style={{
           display: 'flex',
