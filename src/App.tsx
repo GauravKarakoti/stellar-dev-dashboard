@@ -62,6 +62,7 @@ import UserPreferences from './components/preferences/UserPreferences'
 import MobileNavigation from './components/layout/MobileNavigation'
 import AccessibilityProvider from "./components/accessibility/AccessibilityProvider";
 import KeyboardNavigation from './components/accessibility/KeyboardNavigation'
+import ThemeToggle from './components/layout/ThemeToggle'
 
 interface SearchResult {
   type?: string
@@ -242,7 +243,7 @@ function DashboardLayout() {
   }, [isMobileMenuOpen])
 
   useEffect(() => {
-    addBreadcrumb(`Navigated to ${activeTab} tab`, 'navigation', { activeTab })
+    addBreadcrumb(`Mapsd to ${activeTab} tab`, 'navigation', { activeTab })
     trackSecurityEvent(SecurityEventType.CONFIG_CHANGED, {
       target: 'activeTab',
       metadata: { activeTab },
@@ -323,6 +324,7 @@ function DashboardLayout() {
             <div style={{ flex: 1 }}>
               <GlobalSearch onSelectResult={handleSearchResult} />
             </div>
+            <ThemeToggle />
             <button
               onClick={() => setPreferencesOpen(true)}
               title="User Preferences"

@@ -827,3 +827,10 @@ a { color: inherit; text-decoration: none; }
     --bg-card: Canvas;
   }
 }
+/* Smooth CSS transitions between light and dark themes */
+body, main, div, button, span, p, h1, h2, h3, section, header, aside {
+  transition: background-color var(--transition, 0.25s ease), 
+              border-color var(--transition, 0.25s ease), 
+              color var(--transition, 0.25s ease),
+              box-shadow var(--transition, 0.25s ease);
+}
