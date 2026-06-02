@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 // ── Mock heavy children so Overview renders in isolation ──────────────────────
@@ -70,9 +70,10 @@ vi.mock('../../../lib/errorReporting', () => ({
   addBreadcrumb: vi.fn(),
 }));
 
+// Mock userPreferences so getDashboardLayout resolves immediately with no saved layout
 vi.mock('../../../lib/userPreferences', () => ({
   getDashboardLayout: vi.fn().mockResolvedValue([]),
-  saveDashboardLayout: vi.fn().mockResolvedValue([]),
+  saveDashboardLayout: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock the store
@@ -96,48 +97,52 @@ describe('<Overview />', () => {
     mockState = { connectedAddress: 'GABC...XYZ', network: 'testnet' };
   });
 
+  async function renderOverview() {
+    let result;
+    await act(async () => {
+      result = render(<Overview />);
+    });
+    return result;
+  }
+
   it('renders the dashboard header and network badge', async () => {
-    render(<Overview />);
-    expect(await screen.findByText('Dashboard Overview')).toBeInTheDocument();
-    // Network badge text is the network name
+    await renderOverview();
+    expect(screen.getByText('Dashboard Overview')).toBeInTheDocument();
     expect(screen.getByText(/testnet/i)).toBeInTheDocument();
   });
 
   it('renders the default widget grid in non-edit mode', async () => {
-    render(<Overview />);
-    const grid = await screen.findByTestId('dashboard-grid');
+    await renderOverview();
+    const grid = screen.getByTestId('dashboard-grid');
     expect(grid).toBeInTheDocument();
     expect(grid).toHaveAttribute('data-editable', 'false');
     expect(grid).toHaveTextContent('4 widgets');
   });
 
   it('toggles edit mode when the Edit button is clicked', async () => {
-    render(<Overview />);
+    await renderOverview();
 
-    const editBtn = await screen.findByTitle('Edit dashboard');
-    fireEvent.click(editBtn);
+    const editBtn = screen.getByTitle('Edit dashboard');
+    await act(async () => { fireEvent.click(editBtn); });
 
-    // Now in edit mode: grid is editable, "Add Widget" / "Reset" buttons appear
     const grid = screen.getByTestId('dashboard-grid');
     expect(grid).toHaveAttribute('data-editable', 'true');
     expect(screen.getByTitle('Add widget')).toBeInTheDocument();
     expect(screen.getByTitle('Reset to default layout')).toBeInTheDocument();
-    // Edit-mode notice
     expect(screen.getByText(/Edit Mode:/)).toBeInTheDocument();
   });
 
   it('opens the widget selector when "Add Widget" is clicked in edit mode', async () => {
-    render(<Overview />);
-    fireEvent.click(await screen.findByTitle('Edit dashboard'));
-    fireEvent.click(screen.getByTitle('Add widget'));
+    await renderOverview();
+    await act(async () => { fireEvent.click(screen.getByTitle('Edit dashboard')); });
+    await act(async () => { fireEvent.click(screen.getByTitle('Add widget')); });
     expect(screen.getByTestId('widget-selector')).toBeInTheDocument();
   });
 
   it('exits edit mode and returns to the default layout on Reset', async () => {
-    render(<Overview />);
-    // Enter edit, then reset
-    fireEvent.click(await screen.findByTitle('Edit dashboard'));
-    fireEvent.click(screen.getByTitle('Reset to default layout'));
+    await renderOverview();
+    await act(async () => { fireEvent.click(screen.getByTitle('Edit dashboard')); });
+    await act(async () => { fireEvent.click(screen.getByTitle('Reset to default layout')); });
 
     const grid = screen.getByTestId('dashboard-grid');
     expect(grid).toHaveAttribute('data-editable', 'false');
@@ -146,13 +151,12 @@ describe('<Overview />', () => {
 
   it('renders a green badge style for mainnet', async () => {
     mockState = { connectedAddress: 'GABC', network: 'mainnet' };
-    render(<Overview />);
-    expect(await screen.findByText(/mainnet/i)).toBeInTheDocument();
+    await renderOverview();
+    expect(screen.getByText(/mainnet/i)).toBeInTheDocument();
   });
 
   it('renders the connected-address copyable when an address is present', async () => {
-    render(<Overview />);
-    const el = await screen.findByTestId('copyable');
-    expect(el).toHaveTextContent('GABC...X…BC...XYZ');
+    await renderOverview();
+    expect(screen.getByTestId('copyable')).toHaveTextContent('GABC...X…BC...XYZ');
   });
 });
