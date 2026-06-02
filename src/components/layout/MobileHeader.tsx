@@ -75,7 +75,7 @@ export default function MobileHeader() {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <NetworkIndicator compact />
-
+      </div>
       {/* Theme toggle */}
       <button
         onClick={toggleTheme}

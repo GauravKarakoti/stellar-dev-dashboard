@@ -9,6 +9,7 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../../lib/store";
+import { useSwipeGesture } from "../../hooks/useSwipeGesture";
 
 interface NavItem {
   id: string;
@@ -87,6 +88,19 @@ export default function MobileSidebar() {
   const drawerRef = useRef<HTMLElement>(null);
 
   const close = useCallback(() => setMobileMenuOpen(false), [setMobileMenuOpen]);
+
+  // Swipe-left-to-close gesture
+  const swipeRef = useSwipeGesture({
+    onSwipeLeft: close,
+    threshold: 50,
+  });
+
+  // Combine refs
+  useEffect(() => {
+    if (drawerRef.current) {
+      swipeRef.current = drawerRef.current;
+    }
+  }, [swipeRef]);
 
   const handleNavClick = (tabId) => {
     navigate(`/${tabId}`);

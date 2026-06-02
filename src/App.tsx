@@ -1,62 +1,29 @@
-import React, { useEffect, useState, type ComponentType, type CSSProperties } from 'react'
+import React, {
+  lazy,
+  Suspense,
+  useEffect,
+  useState,
+  useCallback,
+  type ComponentType,
+  type CSSProperties,
+} from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { I18nProvider } from './components/I18nProvider'
 import './i18n/index.js'
 import './styles/responsive.css';
+import './styles/mobile-performance.css';
 import { AccessibilityProvider } from './context/AccessibilityContext';
 
 import Sidebar from './components/layout/Sidebar'
 import MobileHeader from './components/layout/MobileHeader'
 import MobileSidebar from './components/layout/MobileSidebar'
 import ConnectPanel from './components/dashboard/ConnectPanel'
-import Overview from './components/dashboard/Overview'
-import Account from './components/dashboard/Account'
-import Transactions from './components/dashboard/Transactions'
-import Contracts from './components/dashboard/Contracts'
-import NetworkStats from './components/dashboard/NetworkStats'
-import Faucet from './components/dashboard/Faucet'
-import Builder from './components/dashboard/Builder'
-import Compare from './components/dashboard/AccountComparison'
-import WalletConnect from './components/dashboard/WalletConnect'
-import TransactionSigner from './components/dashboard/TransactionSigner'
 import PriceTicker from './components/dashboard/PriceTicker'
-import PortfolioValue from './components/dashboard/PortfolioValue'
-import NetworkMetricsChart from './components/charts/NetworkMetricsChart'
-import AccountActivityChart from './components/charts/AccountActivityChart'
-import BalanceHistoryChart from './components/charts/BalanceHistoryChart'
-import AdvancedChartSuite from './components/charts/AdvancedChartSuite'
-import TransactionBuilder from './components/dashboard/TransactionBuilder'
-import ContractInteraction from './components/dashboard/ContractInteraction'
-import ContractABI from './components/dashboard/ContractABI'
-import AdvancedTransactionSimulation from './components/dashboard/AdvancedTransactionSimulation'
-import TransactionSimulator from './components/dashboard/TransactionSimulator'
-import DEXExplorer from './components/dashboard/DEXExplorer'
-import PathExplorer from './components/dashboard/PathExplorer'
-import ExplorerEmbed from './components/dashboard/ExplorerEmbed'
-import RealTimeLedger from './components/dashboard/RealTimeLedger'
-import Analytics from './components/dashboard/Analytics'
-import SystemHealth from './components/dashboard/SystemHealth'
-import PerformanceMonitor from './components/dashboard/PerformanceMonitor'
-import Settings from './components/dashboard/Settings'
-import { AssetDiscovery } from './components/assets'
-import { MultisigManager } from './components/multisig'
-import AuditLog from './components/dashboard/AuditLog'
-import { AnchorIntegration } from './components/anchors'
-import AdvancedSearch from './components/dashboard/AdvancedSearch'
-import CacheStats from './components/dashboard/CacheStats'
-import LiveActivityFeed from './components/dashboard/LiveActivityFeed'
-import ClaimableBalances from './components/dashboard/ClaimableBalances'
-import DataExport from './components/dashboard/DataExport'
 import RealTimeNotificationCenter from './components/notifications/RealTimeNotificationCenter'
 import { useRealTimeNotifications } from './hooks/useRealTimeNotifications'
-import { Webhooks } from './components/dashboard/Webhooks'
-import { LearningHub } from './components/dashboard/LearningHub'
-import { HardwareWalletSecurity } from './components/dashboard/HardwareWalletSecurity'
-import { TemplateLibrary } from './components/dashboard/TemplateLibrary'
 import { pruneCaches } from './lib/cacheManager'
 import ErrorBoundary from './components/ErrorBoundary'
 import { useStore } from './lib/store'
-import { useTranslation } from './hooks/useTranslation'
 import { useResponsive } from './hooks/useResponsive'
 import { initializeErrorReporting, addBreadcrumb } from './lib/errorReporting'
 import {
@@ -71,75 +38,93 @@ import UserPreferences from './components/preferences/UserPreferences'
 import NetworkIndicator from './components/layout/NetworkIndicator'
 import MobileNavigation from './components/layout/MobileNavigation'
 import KeyboardNavigation from './components/accessibility/KeyboardNavigation'
+import ThemeToggle from './components/layout/ThemeToggle'
 import OfflineBanner from './components/layout/OfflineBanner'
 import PWAInstallBanner from './components/PWAInstallBanner'
+import { useSwipeGesture } from './hooks/useSwipeGesture'
 
 interface SearchResult {
   type?: string
 }
 
-const ChartsTab: ComponentType = () => {
-  const { t } = useTranslation() as { t: (key: string) => string }
+type TabComponent = ComponentType<Record<string, unknown>>
+
+const lazyTab = (loader: () => Promise<{ default: TabComponent }>) =>
+  lazy(loader) as unknown as TabComponent
+
+const lazyNamedTab = (
+  loader: () => Promise<Record<string, unknown>>,
+  exportName: string
+) =>
+  lazy(() =>
+    loader().then((module) => ({
+      default: module[exportName] as TabComponent,
+    }))
+  ) as unknown as TabComponent
+
+const Overview = lazyTab(() => import('./components/dashboard/Overview'))
+
+const TABS: Record<string, TabComponent> = {
+  overview: Overview,
+  account: lazyTab(() => import('./components/dashboard/Account')),
+  transactions: lazyTab(() => import('./components/dashboard/Transactions')),
+  contracts: lazyTab(() => import('./components/dashboard/Contracts')),
+  network: lazyTab(() => import('./components/dashboard/NetworkStats')),
+  builder: lazyTab(() => import('./components/dashboard/Builder')),
+  faucet: lazyTab(() => import('./components/dashboard/Faucet')),
+  compare: lazyTab(() => import('./components/dashboard/AccountComparison')),
+  wallet: lazyTab(() => import('./components/dashboard/WalletConnect')),
+  signer: lazyTab(() => import('./components/dashboard/TransactionSigner')),
+  portfolio: lazyTab(() => import('./components/dashboard/PortfolioValue')),
+  txBuilder: lazyTab(() => import('./components/dashboard/TransactionBuilder')),
+  contractInteraction: lazyTab(() => import('./components/dashboard/ContractInteraction')),
+  contractABI: lazyTab(() => import('./components/dashboard/ContractABI')),
+  dex: lazyTab(() => import('./components/dashboard/DEXExplorer')),
+  pathExplorer: lazyTab(() => import('./components/dashboard/PathExplorer')),
+  explorers: lazyTab(() => import('./components/dashboard/ExplorerEmbed')),
+  realtime: lazyTab(() => import('./components/dashboard/RealTimeLedger')),
+  charts: lazyTab(() => import('./components/dashboard/ChartsTab')),
+  assets: lazyNamedTab(() => import('./components/assets'), 'AssetDiscovery'),
+  multisig: lazyNamedTab(() => import('./components/multisig'), 'MultisigManager'),
+  analytics: lazyTab(() => import('./components/dashboard/Analytics')),
+  systemHealth: lazyTab(() => import('./components/dashboard/SystemHealth')),
+  performance: lazyTab(() => import('./components/dashboard/PerformanceMonitor')),
+  settings: lazyTab(() => import('./components/dashboard/Settings')),
+  audit: lazyTab(() => import('./components/dashboard/AuditLog')),
+  anchors: lazyNamedTab(() => import('./components/anchors'), 'AnchorIntegration'),
+  search: lazyTab(() => import('./components/dashboard/AdvancedSearch')),
+  cacheStats: lazyTab(() => import('./components/dashboard/CacheStats')),
+  liveActivity: lazyTab(() => import('./components/dashboard/LiveActivityFeed')),
+  claimableBalances: lazyTab(() => import('./components/dashboard/ClaimableBalances')),
+  dataExport: lazyTab(() => import('./components/dashboard/DataExport')),
+}
+
+function TabLoadingFallback() {
   return (
     <div
-      className="animate-in"
-      style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}
+      aria-busy="true"
+      aria-live="polite"
+      style={{
+        minHeight: '420px',
+        display: 'grid',
+        gap: '16px',
+        gridTemplateRows: '32px 120px 1fr',
+      }}
     >
+      <div style={{ width: '180px', height: '24px', borderRadius: '6px', background: 'var(--bg-elevated)' }} />
+      <div style={{ borderRadius: 'var(--radius-lg)', background: 'var(--bg-elevated)' }} />
       <div
         style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '22px',
-          fontWeight: 700,
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--border)',
+          background: 'var(--bg-card)',
         }}
-      >
-        {t('charts.title')}
-      </div>
-      <NetworkMetricsChart />
-      <AccountActivityChart />
-      <BalanceHistoryChart />
-      <AdvancedChartSuite />
+      />
     </div>
   )
 }
 
-type TabComponent = ComponentType<Record<string, unknown>>
-
-const TABS: Record<string, TabComponent> = {
-  overview: Overview,
-  account: Account,
-  transactions: Transactions,
-  contracts: Contracts,
-  network: NetworkStats,
-  builder: Builder,
-  faucet: Faucet,
-  compare: Compare,
-  wallet: WalletConnect,
-  signer: TransactionSigner,
-  portfolio: PortfolioValue,
-  txBuilder: TransactionBuilder,
-  contractInteraction: ContractInteraction,
-  contractABI: ContractABI,
-  dex: DEXExplorer,
-  pathExplorer: PathExplorer,
-  explorers: ExplorerEmbed,
-  realtime: RealTimeLedger,
-  charts: ChartsTab,
-  assets: AssetDiscovery,
-  multisig: MultisigManager,
-  analytics: Analytics,
-  systemHealth: SystemHealth,
-  performance: PerformanceMonitor,
-  settings: Settings,
-  audit: AuditLog,
-  anchors: AnchorIntegration,
-  search: AdvancedSearch,
-  cacheStats: CacheStats,
-  liveActivity: LiveActivityFeed,
-  claimableBalances: ClaimableBalances,
-  dataExport: DataExport,
-}
-
-function NotificationBell({ onClick }: { onClick: () => void }) {
+function NotificationBell({ onClick, bottomOffset = '20px' }: { onClick: () => void; bottomOffset?: string }) {
   const { unreadCount } = useRealTimeNotifications()
   return (
     <button
@@ -149,9 +134,9 @@ function NotificationBell({ onClick }: { onClick: () => void }) {
       style={{
         position: 'fixed',
         right: '20px',
-        bottom: '20px',
-        width: '44px',
-        height: '44px',
+        bottom: bottomOffset,
+        width: '48px',
+        height: '48px',
         borderRadius: '50%',
         border: '1px solid var(--border)',
         background: 'var(--bg-card)',
@@ -256,7 +241,7 @@ function DashboardLayout() {
   }, [isMobileMenuOpen])
 
   useEffect(() => {
-    addBreadcrumb(`Navigated to ${activeTab} tab`, 'navigation', { activeTab })
+    addBreadcrumb(`Mapsd to ${activeTab} tab`, 'navigation', { activeTab })
     trackSecurityEvent(SecurityEventType.CONFIG_CHANGED, {
       target: 'activeTab',
       metadata: { activeTab },
@@ -319,6 +304,15 @@ function DashboardLayout() {
     navigate('/overview')
   }
 
+  // Swipe right from the left edge to open the mobile sidebar
+  const swipeAreaRef = useSwipeGesture<HTMLElement>({
+    onSwipeRight: useCallback(() => {
+      if (isMobile && !isMobileMenuOpen) setMobileMenuOpen(true)
+    }, [isMobile, isMobileMenuOpen, setMobileMenuOpen]),
+    threshold: 40,
+    restraint: 120,
+  })
+
   return (
     <ErrorBoundary onRetry={handleRetry} maxRetries={3}>
       <OfflineBanner />
@@ -332,13 +326,14 @@ function DashboardLayout() {
         }}
       >
         {isMobile && <MobileHeader />}
-        <Sidebar isMobile={isMobile} />
-        <main id="main-content" style={getMainStyles()} tabIndex={-1}>
+        {isMobile ? <MobileSidebar /> : <Sidebar />}
+        <main style={getMainStyles()} ref={isMobile ? swipeAreaRef : null}>
           <KeyboardNavigation />
           <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ flex: 1 }}>
               <GlobalSearch onSelectResult={handleSearchResult} />
             </div>
+            <ThemeToggle />
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <NetworkIndicator />
             </div>
@@ -368,11 +363,20 @@ function DashboardLayout() {
             <PriceTicker />
           </div>
           <ErrorBoundary onRetry={handleRetry} maxRetries={2}>
-            {!connectedAddress ? <ConnectPanel /> : <ActiveComponent />}
+            {!connectedAddress ? (
+              <ConnectPanel />
+            ) : (
+              <Suspense fallback={<TabLoadingFallback />}>
+                <ActiveComponent />
+              </Suspense>
+            )}
           </ErrorBoundary>
         </main>
         <TourLauncher />
-        <NotificationBell onClick={() => setNotificationsOpen(true)} />
+        <NotificationBell
+          onClick={() => setNotificationsOpen(true)}
+          bottomOffset={isMobile ? 'calc(60px + 16px)' : '20px'}
+        />
         <RealTimeNotificationCenter
           open={notificationsOpen}
           onClose={() => setNotificationsOpen(false)}

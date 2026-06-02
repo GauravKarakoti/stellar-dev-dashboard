@@ -46,9 +46,9 @@
   --content-padding-tablet: 24px;
   --content-padding-mobile: 16px;
   
-  /* Touch targets */
-  --touch-target: 44px;
-  --touch-target-sm: 36px;
+  /* Touch targets - WCAG 2.1 Level AAA requires 48×48px (Issue #140) */
+  --touch-target: 48px;
+  --touch-target-sm: 40px;
   
   /* Breakpoints (used in JS) */
   --bp-mobile: 768px;
@@ -985,4 +985,11 @@ table {
     --text-primary: CanvasText;
     --bg-card: Canvas;
   }
+}
+/* Smooth CSS transitions between light and dark themes */
+body, main, div, button, span, p, h1, h2, h3, section, header, aside {
+  transition: background-color var(--transition, 0.25s ease), 
+              border-color var(--transition, 0.25s ease), 
+              color var(--transition, 0.25s ease),
+              box-shadow var(--transition, 0.25s ease);
 }

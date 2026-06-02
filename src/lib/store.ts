@@ -19,14 +19,14 @@ export interface SearchFilters {
   endDate: string
 }
 
-export interface ComparisonSlot { // ported
+export interface ComparisonSlot {
   key: string
   data: Horizon.AccountResponse | null
   loading: boolean
   error: string | null
 }
 
-export interface Notification { // ported
+export interface Notification {
   id: string
   type: string
   title: string
@@ -35,7 +35,7 @@ export interface Notification { // ported
   timestamp?: number
 }
 
-export interface StreamLedger { // ported
+export interface StreamLedger {
   sequence: number
   [key: string]: unknown
 }
@@ -53,18 +53,25 @@ export const DEFAULT_SEARCH_FILTERS: SearchFilters = {
   endDate: '',
 }
 
+// --- System Preference Detection ---
+const getInitialTheme = (): 'light' | 'dark' => {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    if (saved === 'light' || saved === 'dark') return saved;
+    
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return prefersDark ? 'dark' : 'light';
+  }
+  return 'dark';
+};
+
 export interface StoreState {
-  // Network
   network: NetworkName
   setNetwork: (network: NetworkName) => void
-
-  // UI State (updated)
   theme: 'light' | 'dark'
   toggleTheme: () => void
   isMobileMenuOpen: boolean
   setMobileMenuOpen: (open: boolean) => void
-
-  // Wallet / Account
   connectedAddress: string | null
   accountData: Horizon.AccountResponse | null
   accountLoading: boolean
@@ -73,8 +80,6 @@ export interface StoreState {
   setAccountData: (data: Horizon.AccountResponse) => void
   setAccountLoading: (loading: boolean) => void
   setAccountError: (error: string | null) => void
-
-  // Transactions
   transactions: Horizon.ServerApi.TransactionRecord[]
   txLoading: boolean
   setTransactions: (txs: Horizon.ServerApi.TransactionRecord[]) => void
@@ -86,8 +91,6 @@ export interface StoreState {
   setTxNextCursor: (cursor: string | null) => void
   setTxHasMore: (hasMore: boolean) => void
   setTxPagingLoading: (v: boolean) => void
-
-  // Operations
   operations: Horizon.ServerApi.OperationRecord[]
   opsLoading: boolean
   setOperations: (ops: Horizon.ServerApi.OperationRecord[]) => void
@@ -99,24 +102,16 @@ export interface StoreState {
   setOpsNextCursor: (cursor: string | null) => void
   setOpsHasMore: (hasMore: boolean) => void
   setOpsPagingLoading: (v: boolean) => void
-
-  // Network stats
   networkStats: NetworkStats | null
   statsLoading: boolean
   setNetworkStats: (stats: NetworkStats | ((prev: NetworkStats | null) => NetworkStats)) => void
   setStatsLoading: (v: boolean) => void
-
-  // Active tab
   activeTab: string
   setActiveTab: (tab: string) => void
-
-  // Faucet
   faucetLoading: boolean
   faucetResult: unknown
   setFaucetLoading: (v: boolean) => void
   setFaucetResult: (r: unknown) => void
-
-  // Contract explorer
   contractId: string
   contractData: SorobanRpc.Api.LedgerEntryResult | null
   contractLoading: boolean
@@ -131,32 +126,20 @@ export interface StoreState {
   setSavedSearches: (s: string[]) => void
   multiSigMode: boolean
   setMultiSigMode: (v: boolean) => void
-
-  // Template state
   selectedTemplateId: string | null
   setSelectedTemplateId: (id: string | null) => void
-
-  // Preferences panel
   preferencesOpen: boolean
   setPreferencesOpen: (open: boolean) => void
-
-  // Error state
   globalError: { message: string; category: string } | null
   setGlobalError: (err: { message: string; category: string } | null) => void
-
-  // Price feed state
   prices: Record<string, { usd: number | null; usd_24h_change: number | null }>
   pricesLoading: boolean
   pricesError: string | null
   setPrices: (prices: Record<string, { usd: number | null; usd_24h_change: number | null }>) => void
   setPricesLoading: (loading: boolean) => void
   setPricesError: (error: string | null) => void
-
-  // Search Filters
   searchFilters: SearchFilters
   setSearchFilters: (filters: Partial<SearchFilters>) => void
-
-  // Comparison slots (ported)
   comparisonSlots: ComparisonSlot[]
   addComparisonSlot: () => void
   removeComparisonSlot: (index: number) => void
@@ -165,15 +148,11 @@ export interface StoreState {
   setComparisonData: (index: number, data: Horizon.AccountResponse | null) => void
   setComparisonLoading: (index: number, loading: boolean) => void
   setComparisonError: (index: number, error: string | null) => void
-
-  // Wallet state (ported)
   walletConnected: boolean
   walletType: string | null
   walletPublicKey: string | null
   setWalletConnected: (connected: boolean, type?: string | null, publicKey?: string | null) => void
   disconnectWallet: () => void
-
-  // Notifications (ported)
   notifications: Notification[]
   notificationHistory: Notification[]
   unreadNotificationCount: number
@@ -194,6 +173,8 @@ export interface StoreState {
   setStreamError: (e: string | null) => void
 }
 
+export const useStore = create<StoreState>((set, get) => ({
+  network: 'testnet',
 // ─── Persisted keys ───────────────────────────────────────────────────────────
 const PERSIST_KEYS: Array<keyof StoreState> = [
   'network', 'theme', 'activeTab', 'savedSearches', 'multiSigMode', 'searchFilters',
@@ -241,8 +222,7 @@ export const useStore = create<StoreState>((set, get) => ({
     })
   },
 
-  // UI State (updated)
-  theme: 'dark',
+  theme: getInitialTheme(),
   toggleTheme: () => set((state) => {
     const newTheme = state.theme === 'light' ? 'dark' : 'light'
     if (typeof localStorage !== 'undefined') {
@@ -256,7 +236,6 @@ export const useStore = create<StoreState>((set, get) => ({
   isMobileMenuOpen: false,
   setMobileMenuOpen: (open) => set({ isMobileMenuOpen: open }),
 
-  // Wallet / Account
   connectedAddress: null,
   accountData: null,
   accountLoading: false,
@@ -266,7 +245,6 @@ export const useStore = create<StoreState>((set, get) => ({
   setAccountLoading: (loading) => set({ accountLoading: loading }),
   setAccountError: (error) => set({ accountError: error }),
 
-  // Transactions
   transactions: [],
   txLoading: false,
   setTransactions: (txs) => set({ transactions: txs }),
@@ -283,7 +261,6 @@ export const useStore = create<StoreState>((set, get) => ({
   setTxHasMore: (hasMore) => set({ txHasMore: hasMore }),
   setTxPagingLoading: (v) => set({ txPagingLoading: v }),
 
-  // Operations
   operations: [],
   opsLoading: false,
   setOperations: (ops) => set({ operations: ops }),
@@ -300,25 +277,22 @@ export const useStore = create<StoreState>((set, get) => ({
   setOpsHasMore: (hasMore) => set({ opsHasMore: hasMore }),
   setOpsPagingLoading: (v) => set({ opsPagingLoading: v }),
 
-  // Network stats (updated)
   networkStats: null,
   statsLoading: false,
   setNetworkStats: (stats) => set((state) => ({
-    networkStats: typeof stats === 'function' ? stats(state.networkStats) : stats
+    networkStats: typeof stats === 'function' ? stats(state.networkStats) : stats,
+    statsLoading: false
   })),
   setStatsLoading: (v) => set({ statsLoading: v }),
 
-  // Active tab
   activeTab: 'overview',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
-  // Faucet
   faucetLoading: false,
   faucetResult: null,
   setFaucetLoading: (v) => set({ faucetLoading: v }),
   setFaucetResult: (r) => set({ faucetResult: r }),
 
-  // Contract explorer
   contractId: '',
   contractData: null,
   contractLoading: false,
@@ -334,19 +308,15 @@ export const useStore = create<StoreState>((set, get) => ({
   multiSigMode: false,
   setMultiSigMode: (v) => set({ multiSigMode: v }),
 
-  // Template state
   selectedTemplateId: null,
   setSelectedTemplateId: (id) => set({ selectedTemplateId: id }),
 
-  // Preferences panel
   preferencesOpen: false,
   setPreferencesOpen: (open) => set({ preferencesOpen: open }),
 
-  // Error state
   globalError: null,
   setGlobalError: (err) => set({ globalError: err }),
 
-  // Price feed state
   prices: {},
   pricesLoading: false,
   pricesError: null,
@@ -354,69 +324,48 @@ export const useStore = create<StoreState>((set, get) => ({
   setPricesLoading: (loading) => set({ pricesLoading: loading }),
   setPricesError: (error) => set({ pricesError: error }),
 
+  searchFilters: { status: 'all', memoOnly: false, minFee: '', maxFee: '', type: '' },
+  setSearchFilters: (filters) => set((state) => ({ searchFilters: { ...state.searchFilters, ...filters } })),
   // Search Filters
   searchFilters: DEFAULT_SEARCH_FILTERS,
   setSearchFilters: (filters) => set((state) => ({
     searchFilters: { ...state.searchFilters, ...filters }
   })),
 
-  // Comparison slots (ported)
-  comparisonSlots: [
-    { key: '', data: null, loading: false, error: null },
-    { key: '', data: null, loading: false, error: null },
-    { key: '', data: null, loading: false, error: null },
-  ],
-  addComparisonSlot: () => set((state) => {
-    if (state.comparisonSlots.length >= 5) return {}
-    return {
-      comparisonSlots: [...state.comparisonSlots, { key: '', data: null, loading: false, error: null }]
-    }
-  }),
-  removeComparisonSlot: (index) => set((state) => {
-    if (state.comparisonSlots.length <= 2) return {}
-    const slots = [...state.comparisonSlots]
-    slots.splice(index, 1)
-    return { comparisonSlots: slots }
-  }),
+  comparisonSlots: [],
+  addComparisonSlot: () => set((state) => ({ comparisonSlots: [...state.comparisonSlots, { key: '', data: null, loading: false, error: null }] })),
+  removeComparisonSlot: (index) => set((state) => ({ comparisonSlots: state.comparisonSlots.filter((_, i) => i !== index) })),
   reorderComparisonSlots: (orderedSlots) => set({ comparisonSlots: orderedSlots }),
   setComparisonKey: (index, key) => set((state) => {
-    const slots = [...state.comparisonSlots]
-    slots[index] = { ...slots[index], key, error: null, data: null }
-    return { comparisonSlots: slots }
+    const next = [...state.comparisonSlots]
+    if (next[index]) next[index].key = key
+    return { comparisonSlots: next }
   }),
   setComparisonData: (index, data) => set((state) => {
-    const slots = [...state.comparisonSlots]
-    slots[index] = { ...slots[index], data }
-    return { comparisonSlots: slots }
+    const next = [...state.comparisonSlots]
+    if (next[index]) { next[index].data = data; next[index].error = null; }
+    return { comparisonSlots: next }
   }),
   setComparisonLoading: (index, loading) => set((state) => {
-    const slots = [...state.comparisonSlots]
-    slots[index] = { ...slots[index], loading }
-    return { comparisonSlots: slots }
+    const next = [...state.comparisonSlots]
+    if (next[index]) next[index].loading = loading
+    return { comparisonSlots: next }
   }),
   setComparisonError: (index, error) => set((state) => {
-    const slots = [...state.comparisonSlots]
-    slots[index] = { ...slots[index], error, data: null }
-    return { comparisonSlots: slots }
+    const next = [...state.comparisonSlots]
+    if (next[index]) next[index].error = error
+    return { comparisonSlots: next }
   }),
 
-  // Wallet state (ported)
   walletConnected: false,
   walletType: null,
   walletPublicKey: null,
-  setWalletConnected: (connected, type, publicKey) => set({
-    walletConnected: connected,
-    walletType: type || null,
-    walletPublicKey: publicKey || null,
-  }),
-  disconnectWallet: () => set({
-    walletConnected: false,
-    walletType: null,
-    walletPublicKey: null,
-  }),
+  setWalletConnected: (connected, type = null, publicKey = null) => set({ walletConnected: connected, walletType: type, walletPublicKey: publicKey }),
+  disconnectWallet: () => set({ walletConnected: false, walletType: null, walletPublicKey: null }),
 
-  // Notifications (ported)
   notifications: [],
+  addNotification: (n) => set((state) => ({ notifications: [n, ...state.notifications] })),
+  removeNotification: (id) => set((state) => ({ notifications: state.notifications.filter(n => n.id !== id) })),
   notificationHistory: [],
   unreadNotificationCount: 0,
   addNotification: (notification) => set((state) => ({
@@ -445,15 +394,11 @@ export const useStore = create<StoreState>((set, get) => ({
     unreadNotificationCount: 0
   }),
 
-  // Streaming (ported)
   streamStatus: 'disconnected',
   streamLedgers: [],
   streamError: null,
   setStreamStatus: (status) => set({ streamStatus: status }),
-  addStreamLedger: (ledger) => set((state) => {
-    if (state.streamLedgers.some(l => l.sequence === ledger.sequence)) return {}
-    return { streamLedgers: [ledger, ...state.streamLedgers.slice(0, 49)] }
-  }),
+  addStreamLedger: (l) => set((state) => ({ streamLedgers: [l, ...state.streamLedgers].slice(0, 50) })),
   clearStreamLedgers: () => set({ streamLedgers: [] }),
   setStreamError: (e) => set({ streamError: e }),
 }))
