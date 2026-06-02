@@ -9,6 +9,10 @@ import useSearch from '../../hooks/useSearch'
 import { usePreferences } from '../../hooks/usePreferences'
 import { applyTransactionFilters, applyOperationFilters } from '../../lib/filters'
 import { exportCsv, flattenTransaction } from '../../utils/export'
+import { VirtualTxList, VirtualOpList, TX_ROW_HEIGHT, OP_ROW_HEIGHT } from './VirtualizedLists'
+
+const VIRTUAL_SCROLL_THRESHOLD = 200
+const PAGE_SIZE = 100
 
 function normalizeSearch(value) {
   return String(value || '').toLowerCase().trim()
@@ -99,8 +103,8 @@ export default function Transactions() {
   }, [preferences.savedAddresses])
 
   // Track in-flight requests to prevent duplicate calls
-  const txLoadingRef = useRef(false)
-  const opsLoadingRef = useRef(false)
+  const txLoadingRef = React.useRef(false)
+  const opsLoadingRef = React.useRef(false)
 
   const filteredTransactions = useMemo(() => {
     let list = transactions
@@ -149,7 +153,7 @@ export default function Transactions() {
 
   // Debounced load-more — guards against rapid duplicate calls from
   // both IntersectionObserver and scroll handlers firing together
-  const handleLoadMoreTransactions = useCallback(async () => {
+  const handleLoadMoreTransactions = React.useCallback(async () => {
     if (!connectedAddress || !txHasMore || !txNextCursor || txPagingLoading || txLoadingRef.current) return
     txLoadingRef.current = true
     setTxPagingLoading(true)
@@ -166,7 +170,7 @@ export default function Transactions() {
     }
   }, [connectedAddress, txHasMore, txNextCursor, txPagingLoading, network, appendTransactions, setTxNextCursor, setTxHasMore, setTxPagingLoading])
 
-  const handleLoadMoreOperations = useCallback(async () => {
+  const handleLoadMoreOperations = React.useCallback(async () => {
     if (!connectedAddress || !opsHasMore || !opsNextCursor || opsPagingLoading || opsLoadingRef.current) return
     opsLoadingRef.current = true
     setOpsPagingLoading(true)
@@ -183,13 +187,6 @@ export default function Transactions() {
     }
   }, [connectedAddress, opsHasMore, opsNextCursor, opsPagingLoading, network, appendOperations, setOpsNextCursor, setOpsHasMore, setOpsPagingLoading])
 
-  const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
-    if (key === 'status') return value !== 'all'
-    if (key === 'type') return value !== 'all'
-    if (key === 'memoOnly') return value === true
-    if (key === 'minFee' || key === 'maxFee') return value !== ''
-    return false
-  })
 
   const useVirtualTx = filteredTransactions.length >= VIRTUAL_SCROLL_THRESHOLD
   const useVirtualOp = filteredOperations.length >= VIRTUAL_SCROLL_THRESHOLD
