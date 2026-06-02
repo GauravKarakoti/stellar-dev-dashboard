@@ -1,14 +1,22 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-
-    // Inline plugin: ensure sw.js is copied verbatim to the build root.
-    // Using vite-plugin-pwa would auto-generate the SW, but we ship a custom
-    // one to keep Horizon responses network-only and avoid stale account data.
+    // Bundle analysis: run `ANALYZE=1 npm run build` to generate dist/stats.html
+    process.env.ANALYZE &&
+      visualizer({
+        open: false,
+        filename: 'dist/stats.html',
+        title: 'Stellar Dev Dashboard — Bundle Analysis',
+        gzipSize: true,
+        brotliSize: true,
+        template: 'treemap', // 'treemap' | 'sunburst' | 'network'
+      }),
+    // Security headers plugin (#106): injects HTTP security headers in dev server
     {
       name: 'copy-sw',
       // During build, Vite processes public/ automatically — sw.js placed in
@@ -26,10 +34,22 @@ export default defineConfig({
 
     rollupOptions: {
       output: {
-        // Stable chunk names so the SW cache keys remain predictable
+        // Deterministic chunk names for subresource integrity (#106)
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+        // Manual chunks — keep vendor code in stable, cacheable files.
+        // Chunk strategy:
+        //   stellar-sdk  — Stellar SDK + XDR (largest dep, changes rarely)
+        //   react-vendor — React core + router (stable, long cache TTL)
+        //   ui-vendor    — Recharts + Lucide icons (changes with design work)
+        //   i18n         — i18next runtime (only needed after first render)
+        // Everything else lands in the default index chunk.
         manualChunks: {
-          vendor: ['react', 'react-dom'],
-          stellar: ['@stellar/stellar-sdk'],
+          'stellar-sdk': ['@stellar/stellar-sdk'],
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['lucide-react', 'recharts'],
+          i18n: ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
         },
       },
     },
